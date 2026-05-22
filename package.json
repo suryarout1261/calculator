@@ -1,0 +1,39 @@
+{
+  "name": "shivarkaa-calculate",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next dev",
+    "dev:3001": "next dev -p 3001",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@tailwindcss/postcss": "^4.3.0",
+    "@types/node": "^25.9.1",
+    "@types/react": "^19.2.15",
+    "autoprefixer": "^10.5.0",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.2.1",
+    "framer-motion": "^12.40.0",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
+    "lucide-react": "^1.16.0",
+    "next": "^16.2.6",
+    "next-themes": "^0.4.6",
+    "postcss": "^8.5.15",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "react-hot-toast": "^2.6.0",
+    "recharts": "^3.8.1",
+    "tailwind-merge": "^3.6.0",
+    "tailwindcss": "^4.3.0",
+    "typescript": "^6.0.3",
+    "zustand": "^5.0.13"
+  }
+}

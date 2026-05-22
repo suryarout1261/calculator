@@ -1,0 +1,29 @@
+import { Metadata } from 'next';
+import { Header } from '@/components/layout/Header';
+import { Footer } from '@/components/layout/Footer';
+import { GPACalculator } from '@/components/calculators/GPACalculator';
+
+export const metadata: Metadata = {
+  title: 'GPA Calculator — Calculate Your Grade Point Average',
+  description: 'Free GPA calculator. Add your courses and grades to calculate your GPA on a 4.0 scale instantly.',
+};
+
+export default function GPAPage() {
+  return (
+    <>
+      <Header />
+      <main className="pt-24 pb-16">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <nav className="text-sm text-gray-500 mb-4">
+            <a href="/" className="hover:text-brand-sapphire">Home</a> / <a href="/calculators/education" className="hover:text-brand-sapphire">Education</a> / <span className="text-brand-black dark:text-white">GPA Calculator</span>
+          </nav>
+          <h1 className="font-display text-4xl font-bold mb-3">GPA Calculator</h1>
+          <p className="text-gray-600 dark:text-gray-400 mb-8">Calculate your Grade Point Average on a 4.0 scale.</p>
+          <GPACalculator />
+        </div>
+      </main>
+      <Footer />
+    </>
+  );
+}
+
