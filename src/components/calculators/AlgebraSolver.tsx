@@ -11,11 +11,12 @@ export function AlgebraSolver() {
   const { addToHistory } = useAppStore();
 
   const solve = () => {
-    const eq = equation.trim();
-    if (!eq) return;
+    // Replace caret with superscript 2 for parser compatibility; preserve other exponents as-is
+    const raw = equation.trim();
+    if (!raw) return;
+    const eq = raw.replace(/\^2/g, '²').replace(/\^3/g, '³').replace(/\^4/g, '⁴');
 
     try {
-      // Parse linear equations: ax + b = c or ax = c or x + b = c
       const steps: string[] = [];
       let solution = '';
 
@@ -52,7 +53,7 @@ export function AlgebraSolver() {
         steps.push(`Solution: ${solution}`);
       } else {
         // Try quadratic: ax² + bx + c = 0
-        const quadMatch = eq.match(/^(-?\d*\.?\d*)?\s*x\^?2?\s*([+-]\s*\d*\.?\d*)?\s*x?\s*([+-]\s*\d+\.?\d*)?\s*=\s*0$/);
+        const quadMatch = eq.match(/^(-?\d*\.?\d*)?\s*x\^?²?\s*([+-]\s*\d*\.?\d*)?\s*x?\s*([+-]\s*\d+\.?\d*)?\s*=\s*0$/);
         if (quadMatch) {
           const a = quadMatch[1] ? parseFloat(quadMatch[1]) || 1 : 1;
           const b = quadMatch[2] ? parseFloat(quadMatch[2].replace(/\s/g, '')) : 0;
@@ -94,7 +95,8 @@ export function AlgebraSolver() {
             className="w-full px-4 py-4 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-lg font-mono focus:outline-none focus:ring-2 focus:ring-brand-sapphire/50"
             onKeyDown={(e) => e.key === 'Enter' && solve()}
           />
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Supports: linear (2x + 5 = 15), quadratic (x² - 5x + 6 = 0)</p>
+          <p className="text-sm text-brand-sapphire font-medium mt-2">Use ^ for powers. Example: x^2 - 5x + 6 = 0</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Supports: linear (2x + 5 = 15), quadratic (x^2 - 5x + 6 = 0)</p>
         </div>
         <button onClick={solve} className="btn-primary w-full text-center">Solve Equation</button>
 
