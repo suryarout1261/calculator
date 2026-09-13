@@ -8,7 +8,8 @@
     "dev:3001": "next dev -p 3001",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "deploy": "npm run build && wrangler pages deploy out --project-name=realcalculator365 --force"
   },
   "keywords": [],
   "author": "",
@@ -35,5 +36,8 @@
     "tailwindcss": "^4.3.0",
     "typescript": "^6.0.3",
     "zustand": "^5.0.13"
+  },
+  "devDependencies": {
+    "wrangler": "^4.131.1"
   }
 }
