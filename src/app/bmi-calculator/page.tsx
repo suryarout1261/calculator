@@ -4,9 +4,9 @@ import { Footer } from '@/components/layout/Footer';
 import { BMICalculator } from '@/components/calculators/BMICalculator';
 
 export const metadata: Metadata = {
-  title: 'BMI Calculator — Calculate Your Body Mass Index',
-  description: 'Free online BMI calculator. Check your Body Mass Index instantly. Understand if you are underweight, normal, overweight, or obese with our accurate BMI tool.',
-  keywords: ['BMI calculator', 'body mass index', 'BMI check', 'weight calculator', 'health calculator'],
+  title: 'BMI Calculator — Free Online BMI Calculator (Body Mass Index)',
+  description: 'BMI calculator online free — check your Body Mass Index instantly. Understand if you are underweight, normal, overweight, or obese with our accurate health calculator tool.',
+  keywords: ['BMI calculator', 'body mass index', 'BMI calculator online', 'BMI check', 'weight calculator', 'health calculator'],
 };
 
 export default function BMIPage() {
@@ -20,7 +20,7 @@ export default function BMIPage() {
               <a href="/" className="hover:text-brand-sapphire">Home</a> / <a href="/calculators/health" className="hover:text-brand-sapphire">Health</a> / <span className="text-brand-black dark:text-white">BMI Calculator</span>
             </nav>
             <h1 className="font-display text-4xl font-bold mb-3">BMI Calculator</h1>
-            <p className="text-gray-600 dark:text-gray-400">Calculate your Body Mass Index to assess whether your weight is healthy for your height.</p>
+            <p className="text-gray-600 dark:text-gray-400">Calculate your Body Mass Index with our free online BMI calculator. Understand weight categories instantly with this accurate health calculator tool.</p>
           </div>
 
           <BMICalculator />

@@ -1,9 +1,14 @@
 'use client';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+
+import { useI18n } from '@/components/LocaleProvider';
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 
 export function CompoundInterestCalculator() {
+  const { locale, dict } = useI18n();
+
   const [principal, setPrincipal] = useState('100000');
   const [rate, setRate] = useState('8');
   const [years, setYears] = useState('10');
@@ -24,36 +29,37 @@ export function CompoundInterestCalculator() {
   const fmt = (n: number) => new Intl.NumberFormat('en-IN').format(n);
 
   return (
-    <div className="glass-card p-8">
+    <div className="glass-card p-4 sm:p-8 overflow-x-hidden">
       <div className="grid sm:grid-cols-2 gap-4 mb-6">
-        <div>
+        <div className="min-w-0">
           <label className="block text-sm font-medium mb-2">Principal Amount (₹)</label>
           <input type="number" value={principal} onChange={(e) => setPrincipal(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 focus:outline-none focus:ring-2 focus:ring-brand-sapphire/50" />
+            className="w-full box-border px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 focus:outline-none focus:ring-2 focus:ring-brand-sapphire/50" />
         </div>
-        <div>
+        <div className="min-w-0">
           <label className="block text-sm font-medium mb-2">Annual Rate (%)</label>
           <input type="number" value={rate} onChange={(e) => setRate(e.target.value)} step="0.5"
-            className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 focus:outline-none focus:ring-2 focus:ring-brand-sapphire/50" />
+            className="w-full box-border px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 focus:outline-none focus:ring-2 focus:ring-brand-sapphire/50" />
         </div>
-        <div>
+        <div className="min-w-0">
           <label className="block text-sm font-medium mb-2">Time (Years)</label>
           <input type="number" value={years} onChange={(e) => setYears(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 focus:outline-none focus:ring-2 focus:ring-brand-sapphire/50" />
+            className="w-full box-border px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 focus:outline-none focus:ring-2 focus:ring-brand-sapphire/50" />
         </div>
-        <div>
+        <div className="min-w-0">
           <label className="block text-sm font-medium mb-2">Compounding Frequency</label>
-          <select value={compound} onChange={(e) => setCompound(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 focus:outline-none focus:ring-2 focus:ring-brand-sapphire/50">
-            <option value="1">Annually</option>
-            <option value="4">Quarterly</option>
-            <option value="12">Monthly</option>
-            <option value="365">Daily</option>
-          </select>
+          <div className="w-full min-w-0">
+            <SegmentedControl label="" value={compound} onChange={(v) => setCompound(v)} options={[{value:'1',label:'Yearly'},{value:'2',label:'6mo'},{value:'4',label:'Quarter'},{value:'12',label:'Month'},{value:'365',label:'Daily'}]} />
+          </div>
         </div>
       </div>
 
-      <button onClick={calculate} className="btn-primary w-full text-center">Calculate</button>
+      <motion.button
+        onClick={calculate}
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
+        className="btn-primary w-full box-border text-center"
+      >Calculate</motion.button>
 
       {result && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-8 grid sm:grid-cols-2 gap-4">

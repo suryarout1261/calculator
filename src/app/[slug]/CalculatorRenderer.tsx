@@ -1,5 +1,7 @@
 'use client';
 
+import { useLocaleStore } from '@/lib/store';
+
 import dynamic from 'next/dynamic';
 
 const MortgageCalculator = dynamic(() => import('@/components/calculators/MortgageCalculator').then(m => ({ default: m.MortgageCalculator })));
@@ -12,6 +14,8 @@ const AlgebraSolver = dynamic(() => import('@/components/calculators/AlgebraSolv
 const SimpleInterestCalc = dynamic(() => import('@/components/calculators/SimpleInterestCalculator').then(m => ({ default: m.SimpleInterestCalculator })));
 const UnitConverter = dynamic(() => import('@/components/calculators/UnitConverter').then(m => ({ default: m.UnitConverter })));
 const UniversalCalculator = dynamic(() => import('@/components/calculators/UniversalCalculator').then(m => ({ default: m.UniversalCalculator })));
+const CGPACalculator = dynamic(() => import('@/components/calculators/CGPACalculator').then(m => ({ default: m.CGPACalculator })));
+const GeometryCalculator = dynamic(() => import('@/components/calculators/GeometryCalculator').then(m => ({ default: m.GeometryCalculator })));
 
 const calculatorMap: Record<string, React.ComponentType> = {
   'mortgage-calculator': MortgageCalculator,
@@ -26,9 +30,13 @@ const calculatorMap: Record<string, React.ComponentType> = {
   'length-converter': UnitConverter,
   'weight-converter': UnitConverter,
   'temperature-converter': UnitConverter,
+  'cgpa-calculator': CGPACalculator,
+  'geometry-calculator': GeometryCalculator,
 };
 
 export function CalculatorRenderer({ slug }: { slug: string }) {
+  const locale = useLocaleStore((s) => s.locale);
+
   const Component = calculatorMap[slug];
 
   if (!Component) {

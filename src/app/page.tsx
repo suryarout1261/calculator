@@ -1,26 +1,26 @@
-import { Header } from '@/components/layout/Header';
-import { Footer } from '@/components/layout/Footer';
-import { HeroSection } from '@/components/home/HeroSection';
-import { CategoryGrid } from '@/components/home/CategoryGrid';
-import { PopularCalculators } from '@/components/home/PopularCalculators';
-import { AIFeatures } from '@/components/home/AIFeatures';
-import { TrustSection } from '@/components/home/TrustSection';
-import { FAQSection } from '@/components/home/FAQSection';
+import type { Metadata } from 'next';
+import { HomePage } from '@/components/home/HomePage';
+import { BASE_URL, LOCALE_META, getDictionary, hreflangAlternates } from '@/lib/i18n';
 
-export default function HomePage() {
-  return (
-    <>
-      <Header />
-      <main>
-        <HeroSection />
-        <CategoryGrid />
-        <PopularCalculators />
-        <AIFeatures />
-        <TrustSection />
-        <FAQSection />
-      </main>
-      <Footer />
-    </>
-  );
+const dict = getDictionary('en');
+
+export const metadata: Metadata = {
+  title: dict.metaTitle,
+  description: dict.metaDescription,
+  alternates: {
+    canonical: `${BASE_URL}/`,
+    languages: hreflangAlternates('/'),
+  },
+  openGraph: {
+    type: 'website',
+    locale: LOCALE_META.en.ogLocale,
+    url: `${BASE_URL}/`,
+    siteName: 'Real Calculator 365',
+    title: dict.metaTitle,
+    description: dict.metaDescription,
+  },
+};
+
+export default function Page() {
+  return <HomePage />;
 }
-

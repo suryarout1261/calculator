@@ -1,9 +1,17 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useI18n } from '@/components/LocaleProvider';
+
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { CalculatorActions } from './CalculatorActions';
 import { useAppStore } from '@/lib/store';
+import { AppleSlider } from '@/components/ui/AppleSlider';
+import { AppleSelect } from '@/components/ui/AppleSelect';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { ColorRange, HEART_RATE_ZONES } from '@/components/ui/ColorRange';
+import { AnimatedResultCard, ResultFrame } from '@/components/ui/AnimatedResultCard';
+import { FreeBanner } from '@/components/ui/FreeBanner';
 
 interface UniversalCalculatorProps {
   slug: string;
@@ -35,14 +43,66 @@ const simplifyFraction = (n: number, d: number) => {
   return sd === 1 ? `${sn}` : `${sn}/${sd}`;
 };
 
-const CONFIG: Record<string, {
+const clock = (totalMinutes: number) => {
+  const x = ((Math.round(totalMinutes) % 1440) + 1440) % 1440;
+  const hh = Math.floor(x / 60);
+  const mm = x % 60;
+  const ampm = hh < 12 ? 'AM' : 'PM';
+  const h12 = hh % 12 === 0 ? 12 : hh % 12;
+  return `${h12}:${String(mm).padStart(2, '0')} ${ampm}`;
+};
+const parseClock = (raw: string) => {
+  const [h, m] = (raw || '0:0').split(':').map(Number);
+  return (Number.isFinite(h) ? h : 0) * 60 + (Number.isFinite(m) ? m : 0);
+};
+const selectOptions = (labels: string[]) => labels.map((label) => ({ label, value: label }));
+
+const TZ_OPTIONS = [
+  { label: 'UTC-8 · PST', value: '-8' }, { label: 'UTC-5 · EST', value: '-5' }, { label: 'UTC±0 · GMT', value: '0' },
+  { label: 'UTC+1 · CET', value: '1' }, { label: 'UTC+3 · MSK', value: '3' }, { label: 'UTC+4 · GST', value: '4' },
+  { label: 'UTC+5:30 · IST', value: '5.5' }, { label: 'UTC+8 · CST', value: '8' }, { label: 'UTC+9 · JST', value: '9' }, { label: 'UTC+10 · AEST', value: '10' },
+];
+
+type CalcField = { key: string; label: string; type?: 'number' | 'date' | 'select' | 'text'; options?: Array<{ label: string; value: string }> };
+type CalcConfig = {
   id: string;
   title: string;
   defaults: Values;
-  fields: Array<{ key: string; label: string; type?: 'number' | 'date' | 'select' | 'text'; options?: Array<{ label: string; value: string }> }>;
+  fields: CalcField[] | ((values: Values) => CalcField[]);
   formula: (values: Values) => Result;
   insight: (result: Result) => string;
-}> = {
+};
+
+// Factor-based unit converter builder. Each factor is "how many of this unit equal one base unit".
+const linearConverter = (
+  id: string,
+  title: string,
+  factors: Record<string, number>,
+  from: string,
+  to: string,
+  note: string,
+  decimals = 6,
+): CalcConfig => ({
+  id,
+  title,
+  defaults: { value: '1', from, to },
+  fields: [
+    { key: 'value', label: 'Value', type: 'number' },
+    { key: 'from', label: 'From', type: 'select', options: selectOptions(Object.keys(factors)) },
+    { key: 'to', label: 'To', type: 'select', options: selectOptions(Object.keys(factors)) },
+  ],
+  formula: (v) => {
+    const base = toNum(v, 'value') / factors[v.from];
+    const converted = base * factors[v.to];
+    return {
+      Result: `${round(converted, decimals)} ${v.to}`,
+      'Conversion Rate': `1 ${v.from} = ${round(factors[v.to] / factors[v.from], decimals)} ${v.to}`,
+    };
+  },
+  insight: () => note,
+});
+
+const CONFIG: Record<string, CalcConfig> = {
   'inflation-calculator': {
     id: 'inflation',
     title: 'Inflation Calculator',
@@ -204,13 +264,160 @@ const CONFIG: Record<string, {
     }, insight: () => 'A 2×2 matrix is invertible only when its determinant is not zero.',
   },
   'probability-calculator': {
-    id: 'probability', title: 'Probability Calculator', defaults: { a: '0.4', b: '0.3' },
-    fields: [{ key: 'a', label: 'P(A)', type: 'number' }, { key: 'b', label: 'P(B)', type: 'number' }],
-    formula: (v) => {
-      const a = toNum(v, 'a'), b = toNum(v, 'b');
-      return { 'P(A and B)': round(a * b, 4), 'P(A or B)': round(a + b - a * b, 4), 'P(not A)': round(1 - a, 4) };
-    }, insight: () => 'These results assume independent events unless otherwise stated.',
+    id: 'probability', title: 'Probability Calculator', defaults: { mode: 'theoretical', favorable: '3', total: '10', occurrences: '25', trials: '100', pa: '0.4', pb: '0.3', pab: '0.12', pba: '0.3', pbb: '0.5', independent: 'true', mutuallyExclusive: 'false' },
+    fields: [
+      { key: 'mode', label: 'Probability Type', type: 'select', options: [
+        { label: 'Theoretical', value: 'theoretical' },
+        { label: 'Empirical', value: 'empirical' },
+        { label: 'Conditional', value: 'conditional' },
+        { label: 'Joint', value: 'joint' },
+        { label: 'Bayes', value: 'bayes' },
+        { label: 'Complement', value: 'complement' },
+        { label: 'Addition', value: 'addition' },
+      ]},
+      { key: 'favorable', label: 'Favorable Outcomes', type: 'number' },
+      { key: 'total', label: 'Total Possible Outcomes', type: 'number' },
+      { key: 'occurrences', label: 'Times Event Occurred', type: 'number' },
+      { key: 'trials', label: 'Total Trials', type: 'number' },
+      { key: 'pab', label: 'P(A ∩ B)', type: 'number' },
+      { key: 'pb', label: 'P(B)', type: 'number' },
+      { key: 'pa', label: 'P(A)', type: 'number' },
+      { key: 'pba', label: 'P(B|A)', type: 'number' },
+      { key: 'independent', label: 'Independent / Dependent', type: 'select', options: [{ label: 'Independent', value: 'true' }, { label: 'Dependent', value: 'false' }] },
+      { key: 'mutuallyExclusive', label: 'Mutually Exclusive', type: 'select', options: [{ label: 'No', value: 'false' }, { label: 'Yes', value: 'true' }] },
+    ],
+    formula: (v): any => {
+      const mode = v.mode || 'theoretical';
+      const errors: string[] = [];
+      const validateProb = (key: string, name: string) => {
+        const val = toNum(v, key);
+        if (val < 0 || val > 1) errors.push(`${name} must be between 0 and 1`);
+        return val;
+      };
+      const validateCount = (key: string, name: string) => {
+        const val = toNum(v, key);
+        if (val < 0) errors.push(`${name} cannot be negative`);
+        return val;
+      };
+      if (errors.length > 0) throw new Error(errors.join('; '));
+
+      const fmt = (n: number) => round(n, 4);
+      const pct = (n: number) => `${round(n * 100, 2)}%`;
+      const dec = (n: number) => n.toFixed(4);
+
+      if (mode === 'theoretical') {
+        const favorable = validateCount('favorable', 'Favorable Outcomes');
+        const total = validateCount('total', 'Total Outcomes');
+        if (total === 0) throw new Error('Total outcomes cannot be zero');
+        if (favorable > total) throw new Error('Favorable outcomes cannot exceed total outcomes');
+        const p = favorable / total;
+        return {
+          Probability: fmt(p),
+          Decimal: dec(p),
+          Percentage: pct(p),
+          Formula: 'P(E) = Favorable / Total',
+          Calculation: `${favorable} / ${total} = ${fmt(p)}`,
+        };
+      }
+
+      if (mode === 'empirical') {
+        const occ = validateCount('occurrences', 'Event Occurrences');
+        const trials = validateCount('trials', 'Total Trials');
+        if (trials === 0) throw new Error('Total trials cannot be zero');
+        if (occ > trials) throw new Error('Occurrences cannot exceed trials');
+        const p = occ / trials;
+        return {
+          Probability: fmt(p),
+          Decimal: dec(p),
+          Percentage: pct(p),
+          Formula: 'P(E) = Occurrences / Trials',
+          Calculation: `${occ} / ${trials} = ${fmt(p)}`,
+        };
+      }
+
+      if (mode === 'conditional') {
+        const pab = validateProb('pab', 'P(A ∩ B)');
+        const pb = validateProb('pb', 'P(B)');
+        if (pb === 0) throw new Error('P(B) cannot be zero (division by zero)');
+        const p = pab / pb;
+        return {
+          Probability: fmt(p),
+          Decimal: dec(p),
+          Percentage: pct(p),
+          Formula: 'P(A|B) = P(A ∩ B) / P(B)',
+          Calculation: `${fmt(pab)} / ${fmt(pb)} = ${fmt(p)}`,
+        };
+      }
+
+      if (mode === 'joint') {
+        const pa = validateProb('pa', 'P(A)');
+        const pb = validateProb('pb', 'P(B)');
+        const independent = v.independent === 'true';
+        const p = independent ? pa * pb : pa * toNum(v, 'pba', pb); // dependent uses P(B|A) if given, else approximate
+        const formula = independent ? 'P(A∩B) = P(A) × P(B)' : 'P(A∩B) = P(A) × P(B|A)';
+        const calc = independent ? `${fmt(pa)} × ${fmt(pb)} = ${fmt(p)}` : `${fmt(pa)} × ${fmt(toNum(v, 'pba', pb))} = ${fmt(p)}`;
+        return {
+          Probability: fmt(p),
+          Decimal: dec(p),
+          Percentage: pct(p),
+          Formula: formula,
+          Calculation: calc,
+          Note: independent ? 'Independent events' : 'Dependent events',
+        };
+      }
+
+      if (mode === 'bayes') {
+        const pba = validateProb('pba', 'P(B|A)');
+        const pa = validateProb('pa', 'P(A)');
+        const pb = validateProb('pb', 'P(B)');
+        if (pb === 0) throw new Error('P(B) cannot be zero');
+        const p = (pba * pa) / pb;
+        return {
+          Probability: fmt(p),
+          Decimal: dec(p),
+          Percentage: pct(p),
+          Formula: "P(A|B) = [P(B|A) × P(A)] / P(B)",
+          Calculation: `[${fmt(pba)} × ${fmt(pa)}] / ${fmt(pb)} = ${fmt(p)}`,
+        };
+      }
+
+      if (mode === 'complement') {
+        const pa = validateProb('pa', 'P(A)');
+        const p = 1 - pa;
+        return {
+          Probability: fmt(p),
+          Decimal: dec(p),
+          Percentage: pct(p),
+          Formula: "P(A') = 1 - P(A)",
+          Calculation: `1 - ${fmt(pa)} = ${fmt(p)}`,
+        };
+      }
+
+      if (mode === 'addition') {
+        const pa = validateProb('pa', 'P(A)');
+        const pb = validateProb('pb', 'P(B)');
+        const exclusive = v.mutuallyExclusive === 'true';
+        const pab = exclusive ? 0 : validateProb('pab', 'P(A ∩ B)');
+        const p = exclusive ? pa + pb : pa + pb - pab;
+        if (!exclusive && p > 1) errors.push('Result exceeds 1 — check inputs');
+        if (errors.length > 0) throw new Error(errors.join('; '));
+        const formula = exclusive ? 'P(A∪B) = P(A) + P(B)' : 'P(A∪B) = P(A) + P(B) - P(A∩B)';
+        const calc = exclusive ? `${fmt(pa)} + ${fmt(pb)} = ${fmt(p)}` : `${fmt(pa)} + ${fmt(pb)} - ${fmt(pab)} = ${fmt(p)}`;
+        return {
+          Probability: fmt(p),
+          Decimal: dec(p),
+          Percentage: pct(p),
+          Formula: formula,
+          Calculation: calc,
+          Note: exclusive ? 'Mutually exclusive' : 'Not mutually exclusive',
+        };
+      }
+
+      return { Probability: '—', Formula: 'Select a mode' };
+    },
+    insight: () => 'Select a probability type to compute using the correct formula with step-by-step results.',
   },
+
   'force-calculator': {
     id: 'force', title: 'Force Calculator', defaults: { mass: '10', acceleration: '9.81' },
     fields: [{ key: 'mass', label: 'Mass (kg)', type: 'number' }, { key: 'acceleration', label: 'Acceleration (m/s²)', type: 'number' }],
@@ -274,15 +481,7 @@ const CONFIG: Record<string, {
       return { 'Working Days': work, 'Weekend Days': total - work, 'Total Days': total };
     }, insight: () => 'This excludes Saturday and Sunday but does not subtract public holidays.',
   },
-  'cgpa-calculator': {
-    id: 'cgpa', title: 'CGPA Calculator', defaults: { s1: '8.2', s2: '8.5', s3: '9.0', s4: '8.8' },
-    fields: ['s1', 's2', 's3', 's4'].map((key, index) => ({ key, label: `Semester ${index + 1} GPA`, type: 'number' as const })),
-    formula: (v) => {
-      const vals = Object.values(v).map(Number).filter(Number.isFinite);
-      const cgpa = vals.reduce((a, b) => a + b, 0) / vals.length;
-      return { CGPA: round(cgpa), Percentage: `${round(cgpa * 9.5)}%`, Semesters: vals.length };
-    }, insight: () => 'Many institutions use CGPA × 9.5 as an approximate percentage conversion.',
-  },
+  'cgpa-calculator': { id: 'cgpa', title: 'CGPA Calculator', defaults: {}, fields: [{ key: 'mode', label: 'Mode', type: 'select', options: [{ label: 'Dedicated component', value: 'dedicated' }] }], formula: () => ({ Note: 'Use the dedicated CGPA Calculator for full features.' }), insight: () => 'The full CGPA Calculator supports up to 8 semesters with Simple and Credit-Based modes.' },
   'ai-equation-solver': {
     id: 'ai-equation', title: 'AI Equation Solver', defaults: { prompt: 'Explain 2x + 5 = 15' },
     fields: [{ key: 'prompt', label: 'Equation / Question', type: 'text' }],
@@ -306,6 +505,570 @@ const CONFIG: Record<string, {
     fields: [{ key: 'topic', label: 'Topic', type: 'text' }],
     formula: (v) => ({ Topic: v.topic, Plan: 'Definition → worked example → practice problem → check answer', Tip: 'Write each algebraic step explicitly.' }), insight: () => 'The tutor flow is designed to teach the concept, not just return an answer.',
   },
+
+  // ---------- Finance ----------
+  'currency-converter': {
+    id: 'currency', title: 'Currency Converter', defaults: { amount: '100', from: 'USD', to: 'INR' },
+    fields: [
+      { key: 'amount', label: 'Amount', type: 'number' },
+      { key: 'from', label: 'From Currency', type: 'select', options: selectOptions(['USD', 'EUR', 'GBP', 'INR', 'JPY', 'AUD', 'CAD', 'CNY', 'AED', 'SGD']) },
+      { key: 'to', label: 'To Currency', type: 'select', options: selectOptions(['USD', 'EUR', 'GBP', 'INR', 'JPY', 'AUD', 'CAD', 'CNY', 'AED', 'SGD']) },
+    ],
+    formula: (v) => {
+      const rates: Record<string, number> = { USD: 1, EUR: 0.92, GBP: 0.79, INR: 83, JPY: 157, AUD: 1.52, CAD: 1.37, CNY: 7.24, AED: 3.67, SGD: 1.35 };
+      const usd = toNum(v, 'amount') / rates[v.from];
+      const converted = usd * rates[v.to];
+      return {
+        Converted: `${round(converted)} ${v.to}`,
+        'Exchange Rate': `1 ${v.from} = ${round(rates[v.to] / rates[v.from], 4)} ${v.to}`,
+        'Reverse Rate': `1 ${v.to} = ${round(rates[v.from] / rates[v.to], 4)} ${v.from}`,
+      };
+    },
+    insight: () => 'Rates are indicative static values for estimation only. Connect a live FX API for real-time accuracy.',
+  },
+  'credit-card-calculator': {
+    id: 'credit-card', title: 'Credit Card Payoff Calculator', defaults: { balance: '50000', apr: '36', payment: '3000' },
+    fields: [
+      { key: 'balance', label: 'Outstanding Balance (₹)', type: 'number' },
+      { key: 'apr', label: 'Annual Interest Rate / APR (%)', type: 'number' },
+      { key: 'payment', label: 'Monthly Payment (₹)', type: 'number' },
+    ],
+    formula: (v) => {
+      const balance = toNum(v, 'balance');
+      const monthlyRate = toNum(v, 'apr') / 100 / 12;
+      const payment = toNum(v, 'payment');
+      if (payment <= balance * monthlyRate) throw new Error('Monthly payment must exceed the monthly interest, otherwise the balance never clears.');
+      let months = 0, totalInterest = 0, remaining = balance;
+      while (remaining > 0 && months < 1200) {
+        const interest = remaining * monthlyRate;
+        totalInterest += interest;
+        remaining = remaining + interest - payment;
+        months++;
+      }
+      return { 'Months to Payoff': months, Time: `${Math.floor(months / 12)}y ${months % 12}m`, 'Total Interest': currency(totalInterest), 'Total Paid': currency(balance + totalInterest) };
+    },
+    insight: () => 'Paying more than the minimum each month dramatically cuts both payoff time and total interest.',
+  },
+  'break-even-calculator': {
+    id: 'break-even', title: 'Break-even Calculator', defaults: { fixed: '500000', price: '500', variable: '300' },
+    fields: [
+      { key: 'fixed', label: 'Total Fixed Costs (₹)', type: 'number' },
+      { key: 'price', label: 'Selling Price / Unit (₹)', type: 'number' },
+      { key: 'variable', label: 'Variable Cost / Unit (₹)', type: 'number' },
+    ],
+    formula: (v) => {
+      const fixed = toNum(v, 'fixed'); const price = toNum(v, 'price'); const variable = toNum(v, 'variable');
+      const margin = price - variable;
+      if (margin <= 0) throw new Error('Selling price must be greater than the variable cost per unit.');
+      const units = Math.ceil(fixed / margin);
+      return { 'Break-even Units': units, 'Break-even Revenue': currency(units * price), 'Contribution Margin': `${currency(margin)} (${round((margin / price) * 100)}%)` };
+    },
+    insight: () => 'Above the break-even point, each unit’s contribution margin flows straight to profit.',
+  },
+  'investment-return-calculator': {
+    id: 'investment-return', title: 'Investment Return Calculator', defaults: { initial: '100000', final: '250000', years: '5' },
+    fields: [
+      { key: 'initial', label: 'Initial Investment (₹)', type: 'number' },
+      { key: 'final', label: 'Final Value (₹)', type: 'number' },
+      { key: 'years', label: 'Holding Period (years)', type: 'number' },
+    ],
+    formula: (v) => {
+      const initial = toNum(v, 'initial'); const finalValue = toNum(v, 'final'); const years = toNum(v, 'years');
+      if (initial <= 0) throw new Error('Initial investment must be greater than zero.');
+      const totalReturn = ((finalValue - initial) / initial) * 100;
+      const cagr = years > 0 ? (Math.pow(finalValue / initial, 1 / years) - 1) * 100 : 0;
+      return { 'Total Return': `${round(totalReturn)}%`, 'Absolute Gain': currency(finalValue - initial), CAGR: `${round(cagr)}%/yr`, Multiple: `${round(finalValue / initial)}x` };
+    },
+    insight: () => 'CAGR is the smoothed annual growth rate — the fairest way to compare investments held for different durations.',
+  },
+
+  // ---------- Health & Fitness ----------
+  'heart-rate-calculator': {
+    id: 'heart-rate', title: 'Heart Rate Zone Calculator', defaults: { age: '30', resting: '65' },
+    fields: [
+      { key: 'age', label: 'Age (years)', type: 'number' },
+      { key: 'resting', label: 'Resting Heart Rate (bpm)', type: 'number' },
+    ],
+    formula: (v) => {
+      const age = toNum(v, 'age'); const resting = toNum(v, 'resting');
+      const max = 220 - age;
+      const reserve = max - resting;
+      const zone = (lo: number, hi: number) => `${Math.round(resting + reserve * lo)}–${Math.round(resting + reserve * hi)} bpm`;
+      return { 'Max Heart Rate': `${max} bpm`, 'Warm-up (50–60%)': zone(0.5, 0.6), 'Fat Burn (60–70%)': zone(0.6, 0.7), 'Aerobic (70–80%)': zone(0.7, 0.8), 'Anaerobic (80–90%)': zone(0.8, 0.9) };
+    },
+    insight: () => 'Zones use the Karvonen (heart-rate reserve) method, which personalises targets to your resting heart rate.',
+  },
+  'macro-calculator': {
+    id: 'macro', title: 'Macro Calculator', defaults: { calories: '2200', goal: 'balanced' },
+    fields: [
+      { key: 'calories', label: 'Daily Calories (kcal)', type: 'number' },
+      { key: 'goal', label: 'Diet Split', type: 'select', options: [{ label: 'Balanced (50/25/25)', value: 'balanced' }, { label: 'Low carb (25/40/35)', value: 'lowcarb' }, { label: 'High protein (40/40/20)', value: 'highprotein' }, { label: 'Keto (5/30/65)', value: 'keto' }] },
+    ],
+    formula: (v) => {
+      const splits: Record<string, [number, number, number]> = { balanced: [0.5, 0.25, 0.25], lowcarb: [0.25, 0.4, 0.35], highprotein: [0.4, 0.4, 0.2], keto: [0.05, 0.3, 0.65] };
+      const cal = toNum(v, 'calories');
+      const [c, p, f] = splits[v.goal] ?? splits.balanced;
+      return { Carbs: `${Math.round((cal * c) / 4)} g`, Protein: `${Math.round((cal * p) / 4)} g`, Fat: `${Math.round((cal * f) / 9)} g`, 'Split C/P/F': `${Math.round(c * 100)}/${Math.round(p * 100)}/${Math.round(f * 100)}` };
+    },
+    insight: () => 'Carbohydrate and protein provide 4 kcal/g; fat provides 9 kcal/g. Adjust the split to match your training goals.',
+  },
+  'sleep-cycle-calculator': {
+    id: 'sleep-cycle', title: 'Sleep Cycle Calculator', defaults: { mode: 'wake', time: '06:30' },
+    fields: [
+      { key: 'mode', label: 'I want to…', type: 'select', options: [{ label: 'Wake up at a set time', value: 'wake' }, { label: 'Fall asleep at a set time', value: 'sleep' }] },
+      { key: 'time', label: 'Time (HH:MM, 24-hour)', type: 'text' },
+    ],
+    formula: (v): Result => {
+      const base = parseClock(v.time);
+      if (v.mode === 'sleep') {
+        const wake = (cycles: number) => clock(base + 15 + cycles * 90);
+        return { 'Wake at (9h / 6 cycles)': wake(6), 'Or (7.5h / 5 cycles)': wake(5), 'Or (6h / 4 cycles)': wake(4) };
+      }
+      const bed = (cycles: number) => clock(base - 15 - cycles * 90);
+      return { 'Sleep by (9h / 6 cycles)': bed(6), 'Or (7.5h / 5 cycles)': bed(5), 'Or (6h / 4 cycles)': bed(4) };
+    },
+    insight: () => 'Each sleep cycle runs ~90 minutes, plus ~15 minutes to fall asleep. Waking between cycles feels far more refreshing.',
+  },
+  'ovulation-calculator': {
+    id: 'ovulation', title: 'Ovulation Calculator', defaults: { lmp: new Date().toISOString().slice(0, 10), cycle: '28' },
+    fields: [
+      { key: 'lmp', label: 'First Day of Last Period', type: 'date' },
+      { key: 'cycle', label: 'Average Cycle Length (days)', type: 'number' },
+    ],
+    formula: (v) => {
+      const lmp = new Date(v.lmp);
+      const cycle = toNum(v, 'cycle', 28);
+      const ovulation = new Date(lmp); ovulation.setDate(ovulation.getDate() + (cycle - 14));
+      const fertileStart = new Date(ovulation); fertileStart.setDate(fertileStart.getDate() - 5);
+      const fertileEnd = new Date(ovulation); fertileEnd.setDate(fertileEnd.getDate() + 1);
+      const nextPeriod = new Date(lmp); nextPeriod.setDate(nextPeriod.getDate() + cycle);
+      return {
+        'Ovulation Day': ovulation.toLocaleDateString(),
+        'Fertile Window': `${fertileStart.toLocaleDateString()} – ${fertileEnd.toLocaleDateString()}`,
+        'Next Period': nextPeriod.toLocaleDateString(),
+      };
+    },
+    insight: () => 'Ovulation is estimated ~14 days before the next period. The fertile window spans 5 days before to 1 day after ovulation.',
+  },
+
+  // ---------- Math ----------
+  'statistics-calculator': {
+    id: 'statistics', title: 'Statistics Calculator', defaults: { numbers: '4, 8, 15, 16, 23, 42' },
+    fields: [{ key: 'numbers', label: 'Numbers (comma or space separated)', type: 'text' }],
+    formula: (v) => {
+      const arr = (v.numbers || '').split(/[,\s]+/).map(Number).filter(Number.isFinite);
+      if (!arr.length) throw new Error('Enter at least one number.');
+      const n = arr.length;
+      const sum = arr.reduce((a, b) => a + b, 0);
+      const mean = sum / n;
+      const sorted = [...arr].sort((a, b) => a - b);
+      const median = n % 2 ? sorted[(n - 1) / 2] : (sorted[n / 2 - 1] + sorted[n / 2]) / 2;
+      const freq: Record<number, number> = {};
+      let mode = sorted[0], best = 0;
+      for (const x of arr) { freq[x] = (freq[x] || 0) + 1; if (freq[x] > best) { best = freq[x]; mode = x; } }
+      const variance = arr.reduce((a, b) => a + (b - mean) ** 2, 0) / n;
+      return {
+        Count: n, Sum: round(sum, 4), Mean: round(mean, 4), Median: round(median, 4),
+        Mode: best > 1 ? mode : '—', 'Std Dev': round(Math.sqrt(variance), 4), Variance: round(variance, 4),
+        Range: `${round(sorted[0])} – ${round(sorted[n - 1])}`,
+      };
+    },
+    insight: () => 'Standard deviation uses the population formula (divide by N). Mode shows “—” when every value is unique.',
+  },
+  'geometry-calculator': {
+    id: 'geometry', title: 'Geometry Calculator',
+    defaults: { shape: 'circle', radius: '5', side: '5', length: '6', width: '4', base: '5', height: '4', sideA: '3', sideB: '4', sideC: '5', base1: '6', base2: '4', side1: '3', side2: '5', slant: '5', a: '', b: '', c: '' },
+    fields: (v) => {
+      const s = (v && v.shape) ? v.shape : 'circle';
+      const baseFields = [{ key: 'shape', label: 'Shape', type: 'select', options: [
+        { label: 'Rectangle', value: 'rectangle' },
+        { label: 'Square', value: 'square' },
+        { label: 'Triangle', value: 'triangle' },
+        { label: 'Circle', value: 'circle' },
+        { label: 'Semicircle', value: 'semicircle' },
+        { label: 'Parallelogram', value: 'parallelogram' },
+        { label: 'Trapezoid', value: 'trapezoid' },
+        { label: 'Cube', value: 'cube' },
+        { label: 'Rectangular Prism / Cuboid', value: 'rectangular-prism' },
+        { label: 'Cylinder', value: 'cylinder' },
+        { label: 'Sphere', value: 'sphere' },
+        { label: 'Cone', value: 'cone' },
+      ]}];
+      const shapeFields = {
+        rectangle: [{ key: 'length', label: 'Length' }, { key: 'width', label: 'Width' }],
+        square: [{ key: 'side', label: 'Side' }],
+        triangle: [{ key: 'sideA', label: 'Side A' }, { key: 'sideB', label: 'Side B' }, { key: 'sideC', label: 'Side C' }],
+        circle: [{ key: 'radius', label: 'Radius' }],
+        semicircle: [{ key: 'radius', label: 'Radius' }],
+        parallelogram: [{ key: 'base', label: 'Base' }, { key: 'height', label: 'Height' }, { key: 'side', label: 'Side' }],
+        trapezoid: [{ key: 'base1', label: 'Base 1' }, { key: 'base2', label: 'Base 2' }, { key: 'height', label: 'Height' }, { key: 'side1', label: 'Side 1' }, { key: 'side2', label: 'Side 2' }],
+        cube: [{ key: 'side', label: 'Side' }],
+        'rectangular-prism': [{ key: 'length', label: 'Length' }, { key: 'width', label: 'Width' }, { key: 'height', label: 'Height' }],
+        cylinder: [{ key: 'radius', label: 'Radius' }, { key: 'height', label: 'Height' }],
+        sphere: [{ key: 'radius', label: 'Radius' }],
+        cone: [{ key: 'radius', label: 'Radius' }, { key: 'height', label: 'Height' }, { key: 'slant', label: 'Slant Height' }],
+      };
+      return [...baseFields, ...((shapeFields as any)[s] || [])] as any;
+    },
+    formula: (v: any): any => {
+      const s = v?.shape || 'circle';
+      const pi = Math.PI;
+      const to = (k: string) => { const n = Number(v[k]); return isNaN(n) ? 0 : n; };
+      const r = to('radius'), len = to('length'), wid = to('width'), sid = to('side'), h = to('height'), b = to('base'), a = to('sideA'), bb = to('sideB'), c = to('sideC'), b1 = to('base1'), b2 = to('base2'), s1 = to('side1'), s2 = to('side2'), sl = to('slant');
+      switch (s) {
+        case 'rectangle': {
+          const area = len * wid; const per = 2 * (len + wid); const diag = Math.hypot(len, wid);
+          return { Area: round(area, 4), Perimeter: round(per, 4), Diagonal: round(diag, 4) };
+        }
+        case 'square': {
+          const area = sid * sid; const per = 4 * sid; const diag = sid * Math.SQRT2;
+          return { Area: round(area, 4), Perimeter: round(per, 4), Diagonal: round(diag, 4) };
+        }
+        case 'triangle': {
+          const aVal = a, bVal = bb, cVal = c;
+          if (aVal + bVal <= cVal || aVal + cVal <= bVal || bVal + cVal <= aVal) return { Error: 'Invalid triangle: sides violate triangle inequality' };
+          const p = (aVal + bVal + cVal) / 2;
+          const area = Math.sqrt(p * (p - aVal) * (p - bVal) * (p - cVal));
+          const per = aVal + bVal + cVal;
+          return { Perimeter: round(per, 4), Area: round(area, 4) };
+        }
+        case 'circle': {
+          const area = pi * r * r; const circ = 2 * pi * r; const d = 2 * r;
+          return { Area: round(area, 4), Circumference: round(circ, 4), Diameter: round(d, 4) };
+        }
+        case 'semicircle': {
+          const area = (pi * r * r) / 2; const per = pi * r + 2 * r;
+          return { Area: round(area, 4), Perimeter: round(per, 4) };
+        }
+        case 'parallelogram': {
+          const area = b * h; const per = 2 * (b + sid);
+          return { Area: round(area, 4), Perimeter: round(per, 4) };
+        }
+        case 'trapezoid': {
+          const area = ((b1 + b2) / 2) * h; const per = b1 + b2 + s1 + s2;
+          return { Area: round(area, 4), Perimeter: round(per, 4) };
+        }
+        case 'cube': {
+          const tsa = 6 * sid * sid; const vol = sid * sid * sid; const lsa = 4 * sid * sid; const diag = sid * Math.sqrt(3);
+          return { 'TSA': round(tsa, 4), Volume: round(vol, 4), 'LSA': round(lsa, 4), 'Space Diagonal': round(diag, 4) };
+        }
+        case 'rectangular-prism': {
+          const tsa = 2 * (len * wid + wid * h + h * len); const vol = len * wid * h; const lsa = 2 * h * (len + wid); const diag = Math.sqrt(len * len + wid * wid + h * h);
+          return { 'TSA': round(tsa, 4), Volume: round(vol, 4), 'LSA': round(lsa, 4), Diagonal: round(diag, 4) };
+        }
+        case 'cylinder': {
+          const tsa = 2 * pi * r * (r + h); const vol = pi * r * r * h; const lsa = 2 * pi * r * h;
+          return { 'TSA': round(tsa, 4), Volume: round(vol, 4), 'LSA': round(lsa, 4) };
+        }
+        case 'sphere': {
+          const sa = 4 * pi * r * r; const vol = (4 / 3) * pi * r * r * r;
+          return { 'Surface Area': round(sa, 4), Volume: round(vol, 4) };
+        }
+        case 'cone': {
+          const sa = pi * r * (r + sl); const vol = (1 / 3) * pi * r * r * h; const lsa = pi * r * sl;
+          return { 'Surface Area (TSA)': round(sa, 4), Volume: round(vol, 4), 'LSA': round(lsa, 4) };
+        }
+        default: return { Note: 'Select a shape' };
+      }
+    },
+    insight: (v: any) => {
+      const s = (v && v.shape) ? v.shape : 'circle';
+      const threeD = ['cube', 'rectangular-prism', 'cylinder', 'sphere', 'cone', 'hemisphere', 'prism', 'pyramid', 'triangular-prism', 'square-pyramid'];
+      if (!threeD.includes(s)) return 'Select a 3D shape to see formulas.';
+      const formulas: Record<string, string> = {
+        cube: 'Volume = a³  |  TSA = 6a²  |  LSA = 4a²',
+        'rectangular-prism': 'Volume = l × w × h  |  TSA = 2(lw + lh + wh)  |  LSA = 2h(l + w)',
+        cylinder: 'Volume = πr²h  |  TSA = 2πr(r + h)  |  LSA = 2πrh',
+        sphere: 'Volume = 4/3πr³  |  Surface Area = 4πr²',
+        cone: 'Volume = 1/3πr²h  |  TSA = πr(r + l)  |  LSA = πrl',
+        hemisphere: 'Volume = 2/3πr³  |  TSA = 3πr²  |  LSA = 2πr²',
+        prism: 'Volume = Base Area × Height  |  TSA = 2(Base Area) + Lateral Area',
+        pyramid: 'Volume = 1/3(Base Area × Height)  |  TSA = Base Area + Lateral Area',
+        'triangular-prism': 'Volume = Triangle Area × Length  |  TSA = 2(Triangle Area) + Lateral Area',
+        'square-pyramid': 'Volume = 1/3s²h  |  TSA = s² + 2sl',
+      };
+      return formulas[s] || 'Formula for selected shape.';
+    },
+  },
+  'trigonometry-calculator': {
+    id: 'trigonometry', title: 'Trigonometry Calculator', defaults: { angle: '30', unit: 'deg' },
+    fields: [
+      { key: 'angle', label: 'Angle', type: 'number' },
+      { key: 'unit', label: 'Angle Unit', type: 'select', options: [{ label: 'Degrees', value: 'deg' }, { label: 'Radians', value: 'rad' }] },
+    ],
+    formula: (v) => {
+      const angle = toNum(v, 'angle');
+      const rad = v.unit === 'rad' ? angle : (angle * Math.PI) / 180;
+      return { sin: round(Math.sin(rad), 6), cos: round(Math.cos(rad), 6), tan: round(Math.tan(rad), 6), Radians: round(rad, 6), Degrees: round((rad * 180) / Math.PI, 4) };
+    },
+    insight: () => 'Angles are converted to radians internally. tan is undefined at 90°, 270°, … so expect very large values near those angles.',
+  },
+
+  // ---------- Science ----------
+  'energy-calculator': {
+    id: 'energy', title: 'Energy Calculator', defaults: { mass: '10', velocity: '5', height: '20' },
+    fields: [
+      { key: 'mass', label: 'Mass (kg)', type: 'number' },
+      { key: 'velocity', label: 'Velocity (m/s)', type: 'number' },
+      { key: 'height', label: 'Height (m)', type: 'number' },
+    ],
+    formula: (v) => {
+      const m = toNum(v, 'mass'), vel = toNum(v, 'velocity'), h = toNum(v, 'height');
+      const ke = 0.5 * m * vel * vel;
+      const pe = m * 9.81 * h;
+      return { 'Kinetic Energy': `${round(ke)} J`, 'Potential Energy': `${round(pe)} J`, 'Total Mechanical': `${round(ke + pe)} J` };
+    },
+    insight: () => 'Kinetic energy KE = ½mv²; potential energy PE = mgh, using g = 9.81 m/s².',
+  },
+  'pressure-calculator': {
+    id: 'pressure', title: 'Pressure Calculator', defaults: { force: '1000', area: '2' },
+    fields: [
+      { key: 'force', label: 'Force (N)', type: 'number' },
+      { key: 'area', label: 'Area (m²)', type: 'number' },
+    ],
+    formula: (v) => {
+      const area = toNum(v, 'area');
+      if (area === 0) throw new Error('Area must be greater than zero.');
+      const p = toNum(v, 'force') / area;
+      return { Pressure: `${round(p)} Pa`, Kilopascal: `${round(p / 1000)} kPa`, Bar: `${round(p / 100000, 5)} bar`, Atmospheres: `${round(p / 101325, 5)} atm` };
+    },
+    insight: () => 'Pressure = Force ÷ Area. One standard atmosphere ≈ 101,325 Pa.',
+  },
+  'molarity-calculator': {
+    id: 'molarity', title: 'Molarity Calculator', defaults: { moles: '0.5', volume: '2' },
+    fields: [
+      { key: 'moles', label: 'Moles of Solute (mol)', type: 'number' },
+      { key: 'volume', label: 'Solution Volume (L)', type: 'number' },
+    ],
+    formula: (v) => {
+      const volume = toNum(v, 'volume');
+      if (volume === 0) throw new Error('Volume must be greater than zero.');
+      const m = toNum(v, 'moles') / volume;
+      return { Molarity: `${round(m, 4)} mol/L`, Millimolar: `${round(m * 1000)} mM`, Concentration: `${round(m, 4)} M` };
+    },
+    insight: () => 'Molarity (M) = moles of solute ÷ litres of solution.',
+  },
+
+  // ---------- Engineering ----------
+  'hvac-calculator': {
+    id: 'hvac', title: 'HVAC Calculator', defaults: { area: '250', occupants: '2', sun: 'normal' },
+    fields: [
+      { key: 'area', label: 'Room Area (sq ft)', type: 'number' },
+      { key: 'occupants', label: 'Occupants', type: 'number' },
+      { key: 'sun', label: 'Sun Exposure', type: 'select', options: [{ label: 'Shaded', value: 'shaded' }, { label: 'Normal', value: 'normal' }, { label: 'Sunny', value: 'sunny' }] },
+    ],
+    formula: (v) => {
+      let btu = toNum(v, 'area') * 25 + toNum(v, 'occupants') * 600;
+      if (v.sun === 'sunny') btu *= 1.1;
+      if (v.sun === 'shaded') btu *= 0.9;
+      return { 'Cooling Load': `${Math.round(btu)} BTU/hr`, 'AC Capacity': `${round(btu / 12000, 2)} tons`, 'Suggested Unit': `${(Math.ceil(btu / 6000) / 2).toFixed(1)} ton class` };
+    },
+    insight: () => 'Thumb rule: ~25 BTU per sq ft plus 600 BTU per occupant. Commission a Manual J load calculation before purchasing.',
+  },
+  'construction-estimator': {
+    id: 'construction', title: 'Construction Estimator', defaults: { area: '1000', rate: '1500' },
+    fields: [
+      { key: 'area', label: 'Built-up Area (sq ft)', type: 'number' },
+      { key: 'rate', label: 'Construction Rate (₹/sq ft)', type: 'number' },
+    ],
+    formula: (v) => {
+      const area = toNum(v, 'area'), rate = toNum(v, 'rate');
+      return { 'Total Cost': currency(area * rate), 'Cement (bags)': Math.round(area * 0.4), 'Steel (kg)': Math.round(area * 4), Bricks: Math.round(area * 8) };
+    },
+    insight: () => 'Material figures use common residential thumb rules (0.4 cement bags, 4 kg steel, 8 bricks per sq ft). Confirm with an engineer.',
+  },
+
+  // ---------- Date & Time ----------
+  'time-zone-converter': {
+    id: 'time-zone', title: 'Time Zone Converter', defaults: { time: '12:00', from: '0', to: '5.5' },
+    fields: [
+      { key: 'time', label: 'Time (HH:MM, 24-hour)', type: 'text' },
+      { key: 'from', label: 'From Zone', type: 'select', options: TZ_OPTIONS },
+      { key: 'to', label: 'To Zone', type: 'select', options: TZ_OPTIONS },
+    ],
+    formula: (v) => {
+      const base = parseClock(v.time);
+      const offset = toNum(v, 'to') - toNum(v, 'from');
+      const total = base + offset * 60;
+      const dayShift = Math.floor(total / 1440);
+      return {
+        'Converted Time': clock(total),
+        'Time Difference': `${round(offset, 1)} hrs`,
+        Day: dayShift > 0 ? 'Next day' : dayShift < 0 ? 'Previous day' : 'Same day',
+      };
+    },
+    insight: () => 'Conversion uses fixed UTC offsets and does not account for daylight-saving transitions.',
+  },
+
+  // ---------- Education ----------
+  'attendance-calculator': {
+    id: 'attendance', title: 'Attendance Calculator', defaults: { attended: '42', total: '50', target: '75' },
+    fields: [
+      { key: 'attended', label: 'Classes Attended', type: 'number' },
+      { key: 'total', label: 'Total Classes Held', type: 'number' },
+      { key: 'target', label: 'Target Attendance (%)', type: 'number' },
+    ],
+    formula: (v) => {
+      const attended = toNum(v, 'attended'), total = toNum(v, 'total');
+      const tf = toNum(v, 'target') / 100;
+      if (total <= 0) throw new Error('Total classes must be greater than zero.');
+      if (tf <= 0 || tf >= 1) throw new Error('Target attendance must be between 1% and 99%.');
+      const current = (attended / total) * 100;
+      const onTrack = current >= tf * 100;
+      const result: Result = { 'Current Attendance': `${round(current, 2)}%`, Status: onTrack ? 'On track ✓' : 'Below target' };
+      if (onTrack) result['Classes You Can Skip'] = Math.max(0, Math.floor(attended / tf - total));
+      else result['Classes to Attend'] = Math.max(0, Math.ceil((tf * total - attended) / (1 - tf)));
+      return result;
+    },
+    insight: () => '“Can skip” counts consecutive classes you may miss while staying at target; “to attend” counts classes needed to climb back to it.',
+  },
+  'exam-score-predictor': {
+    id: 'exam-score', title: 'Exam Score Predictor', defaults: { current: '78', weight: '40', target: '85' },
+    fields: [
+      { key: 'current', label: 'Current Overall Grade (%)', type: 'number' },
+      { key: 'weight', label: 'Final Exam Weight (%)', type: 'number' },
+      { key: 'target', label: 'Target Overall Grade (%)', type: 'number' },
+    ],
+    formula: (v) => {
+      const current = toNum(v, 'current'), target = toNum(v, 'target');
+      const weight = toNum(v, 'weight') / 100;
+      if (weight <= 0) throw new Error('Final exam weight must be greater than zero.');
+      const needed = (target - current * (1 - weight)) / weight;
+      return {
+        'Required Final Score': `${round(needed, 2)}%`,
+        Feasibility: needed <= 0 ? 'Target already secured' : needed <= 100 ? 'Achievable' : 'Not achievable from the final alone',
+        'Max Possible Overall': `${round(current * (1 - weight) + 100 * weight, 2)}%`,
+      };
+    },
+    insight: () => 'Required final = (target − current × (1 − weight)) ÷ weight. Above 100% means the target can’t be reached from this exam alone.',
+  },
+
+  // ---------- Conversion ----------
+  'area-converter': linearConverter('area', 'Area Converter',
+    { 'sq meter': 1, 'sq kilometer': 0.000001, 'sq foot': 10.7639, 'sq yard': 1.19599, acre: 0.000247105, hectare: 0.0001, 'sq mile': 3.86102e-7 },
+    'sq meter', 'sq foot', 'All area units are converted through a square-metre base.'),
+  'volume-converter': linearConverter('volume', 'Volume Converter',
+    { liter: 1, milliliter: 1000, 'cubic meter': 0.001, 'US gallon': 0.264172, 'US quart': 1.05669, 'US pint': 2.11338, cup: 4.16667, 'fluid ounce': 33.814 },
+    'liter', 'US gallon', 'All volume units are converted through a one-litre base.'),
+  'speed-converter': linearConverter('speed', 'Speed Converter',
+    { 'm/s': 1, 'km/h': 3.6, mph: 2.23694, knot: 1.94384, 'ft/s': 3.28084 },
+    'km/h', 'mph', 'All speeds are converted through a metre-per-second base.'),
+  'data-storage-converter': linearConverter('data-storage', 'Data Storage Converter',
+    { byte: 1, bit: 8, KB: 1 / 1024, MB: 1 / 1024 ** 2, GB: 1 / 1024 ** 3, TB: 1 / 1024 ** 4, PB: 1 / 1024 ** 5 },
+    'MB', 'GB', 'Uses binary units where 1 KB = 1024 bytes.'),
+
+  // ---------- Business & Accounting ----------
+  'depreciation-calculator': {
+    id: 'depreciation', title: 'Depreciation Calculator', defaults: { cost: '100000', salvage: '10000', life: '5' },
+    fields: [
+      { key: 'cost', label: 'Asset Cost (₹)', type: 'number' },
+      { key: 'salvage', label: 'Salvage Value (₹)', type: 'number' },
+      { key: 'life', label: 'Useful Life (years)', type: 'number' },
+    ],
+    formula: (v) => {
+      const cost = toNum(v, 'cost'), salvage = toNum(v, 'salvage'), life = toNum(v, 'life');
+      if (life <= 0) throw new Error('Useful life must be greater than zero.');
+      const annual = (cost - salvage) / life;
+      return {
+        'Annual (Straight-line)': currency(annual),
+        'Monthly (Straight-line)': currency(annual / 12),
+        'Total Depreciable': currency(cost - salvage),
+        'Year 1 (Double-declining)': currency(cost * (2 / life)),
+      };
+    },
+    insight: () => 'Straight-line spreads cost evenly; double-declining front-loads it. Salvage value is the expected end-of-life residual.',
+  },
+  'payroll-calculator': {
+    id: 'payroll', title: 'Payroll Calculator', defaults: { gross: '80000', tax: '12', pf: '12', other: '2000' },
+    fields: [
+      { key: 'gross', label: 'Gross Monthly Salary (₹)', type: 'number' },
+      { key: 'tax', label: 'Income Tax (%)', type: 'number' },
+      { key: 'pf', label: 'Provident Fund / Retirement (%)', type: 'number' },
+      { key: 'other', label: 'Other Deductions (₹)', type: 'number' },
+    ],
+    formula: (v) => {
+      const gross = toNum(v, 'gross');
+      const tax = (gross * toNum(v, 'tax')) / 100;
+      const pf = (gross * toNum(v, 'pf')) / 100;
+      const other = toNum(v, 'other');
+      const net = gross - tax - pf - other;
+      return { 'Net Monthly Pay': currency(net), 'Total Deductions': currency(tax + pf + other), Tax: currency(tax), 'PF Contribution': currency(pf), 'Annual Net': currency(net * 12) };
+    },
+    insight: () => 'Net pay = gross − income tax − retirement contributions − other deductions.',
+  },
+  'revenue-growth-calculator': {
+    id: 'revenue-growth', title: 'Revenue Growth Calculator', defaults: { initial: '1000000', final: '1500000', periods: '3' },
+    fields: [
+      { key: 'initial', label: 'Starting Revenue (₹)', type: 'number' },
+      { key: 'final', label: 'Ending Revenue (₹)', type: 'number' },
+      { key: 'periods', label: 'Number of Periods', type: 'number' },
+    ],
+    formula: (v) => {
+      const initial = toNum(v, 'initial'), finalValue = toNum(v, 'final'), periods = toNum(v, 'periods');
+      if (initial <= 0) throw new Error('Starting revenue must be greater than zero.');
+      const growth = ((finalValue - initial) / initial) * 100;
+      const cagr = periods > 0 ? (Math.pow(finalValue / initial, 1 / periods) - 1) * 100 : 0;
+      return { 'Total Growth': `${round(growth)}%`, CAGR: `${round(cagr)}%/period`, 'Absolute Increase': currency(finalValue - initial), 'Avg / Period': currency((finalValue - initial) / (periods || 1)) };
+    },
+    insight: () => 'CAGR normalises growth across periods, while total growth is the raw percentage increase end to end.',
+  },
+  'ebitda-calculator': {
+    id: 'ebitda', title: 'EBITDA Calculator', defaults: { netIncome: '500000', interest: '80000', taxes: '120000', depreciation: '100000', revenue: '2000000' },
+    fields: [
+      { key: 'netIncome', label: 'Net Income (₹)', type: 'number' },
+      { key: 'interest', label: 'Interest (₹)', type: 'number' },
+      { key: 'taxes', label: 'Taxes (₹)', type: 'number' },
+      { key: 'depreciation', label: 'Depreciation & Amortization (₹)', type: 'number' },
+      { key: 'revenue', label: 'Total Revenue (₹)', type: 'number' },
+    ],
+    formula: (v) => {
+      const addBacks = toNum(v, 'interest') + toNum(v, 'taxes') + toNum(v, 'depreciation');
+      const ebitda = toNum(v, 'netIncome') + addBacks;
+      const revenue = toNum(v, 'revenue');
+      return { EBITDA: currency(ebitda), 'EBITDA Margin': `${round(revenue > 0 ? (ebitda / revenue) * 100 : 0)}%`, 'Total Add-backs': currency(addBacks) };
+    },
+    insight: () => 'EBITDA = Net Income + Interest + Taxes + Depreciation & Amortization; margin = EBITDA ÷ Revenue.',
+  },
+
+  // ---------- AI Tools ----------
+  'ai-budget-planner': {
+    id: 'ai-budget', title: 'AI Budget Planner', defaults: { income: '80000', expenses: '45000', goal: '20' },
+    fields: [
+      { key: 'income', label: 'Monthly Income (₹)', type: 'number' },
+      { key: 'expenses', label: 'Monthly Expenses (₹)', type: 'number' },
+      { key: 'goal', label: 'Savings Goal (%)', type: 'number' },
+    ],
+    formula: (v) => {
+      const income = toNum(v, 'income'), expenses = toNum(v, 'expenses');
+      const savings = income - expenses;
+      const rate = income > 0 ? (savings / income) * 100 : 0;
+      const gap = Math.max(0, (income * toNum(v, 'goal')) / 100 - savings);
+      return {
+        'Needs (50%)': currency(income * 0.5), 'Wants (30%)': currency(income * 0.3), 'Savings (20%)': currency(income * 0.2),
+        'Your Savings Rate': `${round(rate)}%`, 'Monthly Gap to Goal': currency(gap),
+      };
+    },
+    insight: () => 'Benchmarked against the 50/30/20 rule. The gap shows how much more to set aside monthly to hit your target savings rate.',
+  },
+  'ai-calorie-planner': {
+    id: 'ai-calorie', title: 'AI Calorie Planner', defaults: { tdee: '2200', goal: 'maintain' },
+    fields: [
+      { key: 'tdee', label: 'Maintenance Calories / TDEE (kcal)', type: 'number' },
+      { key: 'goal', label: 'Goal', type: 'select', options: [{ label: 'Lose fat', value: 'lose' }, { label: 'Maintain', value: 'maintain' }, { label: 'Gain muscle', value: 'gain' }] },
+    ],
+    formula: (v) => {
+      const tdee = toNum(v, 'tdee');
+      const target = v.goal === 'lose' ? tdee - 500 : v.goal === 'gain' ? tdee + 400 : tdee;
+      return {
+        'Target Calories': `${Math.round(target)} kcal/day`,
+        Protein: `${Math.round((target * 0.3) / 4)} g`,
+        Carbs: `${Math.round((target * 0.4) / 4)} g`,
+        Fat: `${Math.round((target * 0.3) / 9)} g`,
+        'Est. Weekly Change': v.goal === 'maintain' ? '~0 kg' : v.goal === 'lose' ? '≈ −0.45 kg' : '≈ +0.36 kg',
+      };
+    },
+    insight: () => 'A 500 kcal daily deficit ≈ 0.45 kg/week of fat loss. Macros use a 30% protein / 40% carb / 30% fat split.',
+  },
 };
 
 const ALIASES: Record<string, string> = {
@@ -314,30 +1077,39 @@ const ALIASES: Record<string, string> = {
   'temperature-converter': 'unit-converter',
 };
 
-export function UniversalCalculator({ slug }: UniversalCalculatorProps) {
+export function UniversalCalculator({
+  slug }: UniversalCalculatorProps) {
+  const { locale, dict } = useI18n();
   const config = CONFIG[slug] || CONFIG[ALIASES[slug]];
   const [values, setValues] = useState<Values>(config?.defaults ?? { value: '1' });
   const [result, setResult] = useState<Result | null>(null);
   const [error, setError] = useState('');
   const { addToHistory } = useAppStore();
+  const historyTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   const renderedTitle = config?.title ?? 'Smart Calculator';
   const actionId = config?.id ?? slug.replaceAll(/-calculator|-converter|-solver/g, '');
-  const fields = config?.fields ?? [{ key: 'value', label: 'Value', type: 'number' as const }];
+  const fields = typeof config?.fields === "function" ? config.fields(values) : (config?.fields ?? [{ key: 'value', label: 'Value', type: 'number' as const }]);
   const explanation = useMemo(() => result && config ? config.insight(result) : '', [result, config]);
 
-  const calculate = () => {
+  // Live calculation — runs whenever values change
+  useEffect(() => {
     if (!config) return;
     setError('');
     try {
       const output = config.formula(values);
       setResult(output);
-      addToHistory({ calculatorId: actionId, calculatorTitle: renderedTitle, inputs: values, result: output });
+
+      // Debounced history save
+      if (historyTimeoutRef.current) clearTimeout(historyTimeoutRef.current);
+      historyTimeoutRef.current = setTimeout(() => {
+        addToHistory({ calculatorId: actionId, calculatorTitle: renderedTitle, inputs: values, result: output });
+      }, 1500);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Please enter valid inputs.');
       setResult(null);
     }
-  };
+  }, [values, config, actionId, renderedTitle, addToHistory]);
 
   if (!config) {
     return (
@@ -348,52 +1120,290 @@ export function UniversalCalculator({ slug }: UniversalCalculatorProps) {
     );
   }
 
+  // Detect if field should render as slider (numeric with reasonable range)
+  const renderField = (field: CalcField) => {
+    const key = field.key;
+    const currentValue = values[key] ?? '';
+
+    if (field.type === 'select' && field.options) {
+      return (
+        <AppleSelect
+          label={field.label}
+          value={String(currentValue)}
+          options={field.options}
+          onChange={(v) => setValues((cur) => ({ ...cur, [key]: v }))}
+        />
+      );
+    }
+
+    // Numeric fields with common ranges — geometry calculator uses only number inputs (no sliders)
+    if (field.type === 'number' || !field.type) {
+      const isGeometry = actionId === 'geometry';
+      const numVal = Number(currentValue) || 0;
+      const ranges: Record<string, { min: number; max: number; step: number; suffix?: string }> = {
+        age: { min: 1, max: 100, step: 1, suffix: ' yrs' },
+        weight: { min: 30, max: 200, step: 0.5, suffix: ' kg' },
+        height: { min: 120, max: 220, step: 1, suffix: ' cm' },
+        resting: { min: 40, max: 100, step: 1, suffix: ' bpm' },
+        mass: { min: 1, max: 200, step: 0.5, suffix: ' kg' },
+        velocity: { min: 0, max: 100, step: 0.5, suffix: ' m/s' },
+        rate: { min: 0, max: 50, step: 0.1, suffix: '%' },
+        years: { min: 1, max: 50, step: 1, suffix: ' yrs' },
+        months: { min: 1, max: 600, step: 1, suffix: ' mos' },
+      };
+
+      const detectedRange = ranges[key.toLowerCase()] || (key.toLowerCase().includes('percent') || key.toLowerCase().includes('rate') ? { min: 0, max: 100, step: 0.5, suffix: '%' } : null);
+
+      if (!isGeometry && detectedRange) {
+        return (
+          <AppleSlider
+            label={field.label}
+            value={numVal}
+            onChange={(v) => setValues((cur) => ({ ...cur, [key]: String(v) }))}
+            min={detectedRange.min}
+            max={detectedRange.max}
+            step={detectedRange.step}
+            suffix={detectedRange.suffix}
+          />
+        );
+      }
+    }
+
+    // Default text/number input for dates, text, and unbounded numbers
+    return (
+      <div className="space-y-2">
+        <label className="text-sm font-bold text-gray-900 dark:text-white tracking-wide uppercase">
+          {field.label}
+        </label>
+        <input
+          type={field.type ?? 'number'}
+          value={currentValue}
+          onChange={(e) => setValues((cur) => ({ ...cur, [key]: e.target.value }))}
+          className="w-full px-5 py-4 rounded-2xl text-base font-semibold text-gray-900 dark:text-white bg-white dark:bg-gray-900 shadow-md border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-sapphire/50 focus:shadow-xl transition-all duration-300"
+        />
+      </div>
+    );
+  };
+
+  const isHeartRate = actionId === 'heart-rate';
+  const heartRateData = isHeartRate && result ? (() => {
+    const age = Number(values.age) || 30;
+    const max = 220 - age;
+    return { max, zones: HEART_RATE_ZONES };
+  })() : null;
+
+  // Probability conditional inputs component
+  const ProbabilityInputs = ({ values, setValues, mode }: { values: any; setValues: (v: any) => void; mode: string }) => {
+    const mutuallyExclusive = values.mutuallyExclusive === 'true';
+    const set = (k: string, v: string) => setValues((cur: any) => ({ ...cur, [k]: v }));
+
+    const input = (label: string, key: string) => (
+      <div className="space-y-2">
+        <label className="text-sm font-bold text-gray-900 dark:text-white tracking-wide uppercase">{label}</label>
+        <input
+          type="number"
+          value={values[key] ?? ''}
+          onChange={(e) => set(key, e.target.value)}
+          step="0.01"
+          className="w-full px-5 py-4 rounded-2xl text-base font-semibold text-gray-900 dark:text-white bg-white dark:bg-gray-900 shadow-md border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-sapphire/50 focus:shadow-xl transition-all duration-300"
+        />
+      </div>
+    );
+
+    const select = (label: string, key: string, options: { label: string; value: string }[]) => (
+      <div className="space-y-2">
+        <label className="text-sm font-bold text-gray-900 dark:text-white tracking-wide uppercase">{label}</label>
+        <select
+          value={values[key] ?? ''}
+          onChange={(e) => set(key, e.target.value)}
+          className="w-full px-5 py-4 rounded-2xl text-base font-semibold text-gray-900 dark:text-white bg-white dark:bg-gray-900 shadow-md border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-sapphire/50 focus:shadow-xl transition-all duration-300"
+        >
+          {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+      </div>
+    );
+
+    // Mode selector always shown
+    const modeSelect = select('Probability Type', 'mode', [
+      { label: 'Theoretical', value: 'theoretical' },
+      { label: 'Empirical', value: 'empirical' },
+      { label: 'Conditional', value: 'conditional' },
+      { label: 'Joint', value: 'joint' },
+      { label: 'Bayes', value: 'bayes' },
+      { label: 'Complement', value: 'complement' },
+      { label: 'Addition', value: 'addition' },
+    ]);
+
+    // Helper to render 2-column rows
+    const row2 = (a: React.ReactNode, b?: React.ReactNode) => (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{a}{b}</div>
+    );
+
+    return (
+      <div className="space-y-6">
+        {modeSelect}
+
+        {mode === 'theoretical' && row2(input('Favorable Outcomes', 'favorable'), input('Total Possible Outcomes', 'total'))}
+        {mode === 'empirical' && row2(input('Times Event Occurred', 'occurrences'), input('Total Trials', 'trials'))}
+        {mode === 'conditional' && row2(input('P(A ∩ B)', 'pab'), input('P(B)', 'pb'))}
+        {mode === 'joint' && (
+          <>
+            {row2(input('P(A)', 'pa'), input('P(B)', 'pb'))}
+            {select('Independent / Dependent', 'independent', [{ label: 'Independent', value: 'true' }, { label: 'Dependent', value: 'false' }])}
+          </>
+        )}
+        {mode === 'bayes' && (
+          <>
+            {row2(input('P(B|A)', 'pba'), input('P(A)', 'pa'))}
+            {row2(input('P(B)', 'pb'), <div />)}
+          </>
+        )}
+        {mode === 'complement' && row2(input('P(A)', 'pa'), <div />)}
+        {mode === 'addition' && (
+          <>
+            {row2(input('P(A)', 'pa'), input('P(B)', 'pb'))}
+            <div className={mutuallyExclusive ? 'opacity-40 pointer-events-none' : ''}>
+              {input(mutuallyExclusive ? 'P(A ∩ B) = 0' : 'P(A ∩ B)', 'pab')}
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {select('Mutually Exclusive', 'mutuallyExclusive', [{ label: 'No', value: 'false' }, { label: 'Yes', value: 'true' }])}
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
+
   return (
     <CalculatorActions calculatorId={actionId} result={result} inputs={values}>
+      <FreeBanner />
+
       <div className="glass-card p-8">
-        <div className="grid sm:grid-cols-2 gap-4 mb-6">
-          {fields.map((field) => (
-            <div key={field.key}>
-              <label className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">{field.label}</label>
-              {field.type === 'select' ? (
-                <select
-                  value={values[field.key] ?? ''}
-                  onChange={(e) => setValues((current) => ({ ...current, [field.key]: e.target.value }))}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-sapphire/50"
-                >
-                  {field.options?.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                </select>
-              ) : (
-                <input
-                  type={field.type ?? 'number'}
-                  value={values[field.key] ?? ''}
-                  onChange={(e) => setValues((current) => ({ ...current, [field.key]: e.target.value }))}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-sapphire/50"
-                />
-              )}
-            </div>
-          ))}
+        {/* SEO-friendly intro */}
+        <div className="mb-8 pb-6 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-xl font-display font-bold text-gray-900 dark:text-white mb-2">
+            {renderedTitle} — Live
+          </h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Adjust the inputs and watch results update instantly in real time.
+          </p>
         </div>
 
-        {error && <p className="mb-4 rounded-lg bg-red-50 dark:bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300">{error}</p>}
-        <button onClick={calculate} className="btn-primary w-full text-center">Calculate</button>
-
-        {result && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-8">
-            <div className="grid sm:grid-cols-2 gap-4">
-              {Object.entries(result).map(([key, value]) => (
-                <div key={key} className="p-5 rounded-xl bg-brand-sapphire/10 text-center border border-brand-sapphire/10">
-                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">{key}</p>
-                  <p className="font-display text-xl font-bold text-brand-sapphire break-words">{String(value)}</p>
-                </div>
-              ))}
-            </div>
-            <div className="mt-6 rounded-xl bg-gray-50 dark:bg-gray-800 p-5">
-              <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Formula Insight</h4>
-              <p className="text-sm text-gray-700 dark:text-gray-300">{explanation}</p>
-            </div>
+        {/* Input Fields */}
+        {actionId === 'probability' ? (
+          <ProbabilityInputs values={values} setValues={setValues} mode={values.mode || 'theoretical'} />
+        ) : (
+          <motion.div layout className="space-y-6 mb-2">
+            {fields.map((field) => (
+              <motion.div key={field.key} layout>
+                {renderField(field)}
+              </motion.div>
+            ))}
           </motion.div>
         )}
+
+        {error && (
+          <motion.p
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="my-4 rounded-lg bg-red-50 dark:bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300"
+          >
+            {error}
+          </motion.p>
+        )}
+
+        {/* Results */}
+        <ResultFrame show={!!result && !error} delay={0.1}>
+          <motion.div layout className="mt-8 space-y-6">
+            <div className="grid sm:grid-cols-2 gap-4">
+              {result && Object.entries(result).map(([key, value], i) => (
+                <AnimatedResultCard
+                  key={key}
+                  label={key}
+                  value={String(value)}
+                  delay={i * 0.05}
+                  gradient="from-brand-sapphire/10 to-blue-500/5"
+                />
+              ))}
+            </div>
+
+            {/* Heart Rate Zone Visualization */}
+            {heartRateData && (
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35, delay: 0.2, ease: [0.32, 0.72, 0, 1] }}
+                className="rounded-2xl p-6 bg-white dark:bg-gray-900/60 border border-gray-100 dark:border-gray-800 shadow-lg"
+              >
+                <ColorRange
+                  label="Heart Rate Zones"
+                  value={heartRateData.max}
+                  min={40}
+                  max={200}
+                  zones={heartRateData.zones}
+                  showMarker={false}
+                />
+              </motion.div>
+            )}
+
+            {/* Formula Insight */}
+            {explanation && (
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35, delay: 0.25, ease: [0.32, 0.72, 0, 1] }}
+                className="rounded-2xl p-6 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700"
+              >
+                <h4 className="font-semibold text-gray-900 dark:text-white mb-2 text-sm uppercase tracking-wide">
+                  Formula Insight
+                </h4>
+                <div className="mt-3 space-y-2 text-sm text-gray-700 dark:text-gray-300">{(() => {
+                  const calcId = actionId;
+                  // Use calculator-specific formulas derived from config logic, never generic geometry
+                  const formulas: Record<string, string> = {
+                    'inflation': 'Future Cost = Current Amount × (1 + Rate/100)^Years',
+                    'retirement': 'Corpus = P × [(1 + r/12)^(12×n) − 1] / (r/12) + L × (1 + r/12)^(12×n)',
+                    'salary': 'Gross = Base + Bonus  |  Net = Gross × (1 − Tax Rate)  |  Monthly = Net / 12',
+                    'tax': 'Taxable = Income − Deductions  |  Tax = Progressive Slab (4% cess included)',
+                    'profit-margin': 'Net Profit = Revenue − Cost  |  Margin = (Net / Revenue) × 100  |  Markup = (Net / Cost) × 100',
+                    'currency': 'Converted = Amount × Rate  |  Rate = Market / Indicative',
+                    'credit-card': 'Months = −ln(1 − r·B / p) / ln(1 + r)  |  Total Interest = p·months − B',
+                    'compound-interest': 'A = P(1 + r/n)^(nt)',
+                    'emi': 'EMI = P·r·(1+r)^n / ((1+r)^n − 1)',
+                    'simple-interest': 'SI = P × r × t  |  Total = P + SI',
+                    'loan': 'EMI = P·r·(1+r)^n / ((1+r)^n − 1)  |  Total = EMI × n',
+                    'sip': 'FV = P × ([1+r]^n − 1) / r  |  r = monthly rate',
+                    'investment-return': 'CAGR = (End / Start)^(1/years) − 1',
+                    'break-even': 'Units = Fixed / (Price − Variable)  |  Revenue = Units × Price',
+                    'force': 'F = m × a',
+                    'velocity': 'v = d / t',
+                    'density': 'ρ = m / V',
+                    'ohms-law': 'V = I × R  |  P = I² × R',
+                    'energy': 'KE = ½mv²  |  PE = mgh (g=9.81)',
+                    'molarity': 'M = mol / L',
+                    'pressure': 'P = F / A',
+                    'geometry': 'Select a shape above to see its formula.',
+                    'matrix': 'Det = ad − bc  |  Inverse = (1/det) × [[d, −b], [−c, a]]',
+                    'probability': 'P = Favorable / Total',
+                    'cgpa': 'CGPA = Σ(GPA×Credits) / Σ(Credits)',
+                    'age': 'Age = Today − DOB',
+                    'bmi': 'BMI = kg / m²',
+                    'calorie': 'BMR = 10W + 6.25H − 5A + 5 (M) / −161 (F)',
+                    'percentage': 'Percent = (Part / Whole) × 100',
+                    'gpa': 'GPA = Σ(Credit×Grade) / Σ(Credit)',
+                    'loan-calculator': 'EMI = P·r·(1+r)^n / ((1+r)^n − 1)',
+                    'mortgage': 'Monthly = P·r·(1+r)^n / ((1+r)^n − 1)',
+                    'roi': 'ROI = (Gain − Cost) / Cost × 100',
+                  };
+                  const text = formulas[calcId] || (config?.insight ? (config.insight(result || {}) || 'See calculator inputs.') : 'See the calculation logic for the formula.');
+                  // Show only calculator-specific formula; never fall back to geometry
+                  return <div className="font-extrabold text-xl md:text-2xl text-brand-sapphire dark:text-brand-sapphire font-mono leading-snug whitespace-pre-line bg-brand-sapphire/10 dark:bg-brand-sapphire/20 rounded-xl px-4 py-3">{text}</div>;
+                })()}</div>
+                <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{explanation}</p>
+              </motion.div>
+            )}
+          </motion.div>
+        </ResultFrame>
       </div>
     </CalculatorActions>
   );

@@ -1,11 +1,15 @@
 'use client';
 
+import { useI18n } from '@/components/LocaleProvider';
+
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { CalculatorActions } from './CalculatorActions';
 import { useAppStore } from '@/lib/store';
 
 export function SimpleInterestCalculator() {
+  const { locale, dict } = useI18n();
+
   const [principal, setPrincipal] = useState('100000');
   const [rate, setRate] = useState('8');
   const [time, setTime] = useState('5');
@@ -30,7 +34,12 @@ export function SimpleInterestCalculator() {
           <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Rate (%/year)</label><input type="number" value={rate} onChange={(e) => setRate(e.target.value)} step="0.5" className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-sapphire/50" /></div>
           <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Time (years)</label><input type="number" value={time} onChange={(e) => setTime(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-sapphire/50" /></div>
         </div>
-        <button onClick={calculate} className="btn-primary w-full text-center">Calculate</button>
+        <motion.button
+          onClick={calculate}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          className="btn-primary w-full text-center"
+        >Calculate</motion.button>
         {result && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-8 grid sm:grid-cols-2 gap-4">
             <div className="p-5 rounded-xl bg-brand-gold/10 text-center"><p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Interest Earned</p><p className="font-display text-2xl font-bold text-brand-gold">₹{fmt(result.interest)}</p></div>

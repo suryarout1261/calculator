@@ -2,24 +2,26 @@
 
 import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
+import { useI18n } from '@/components/LocaleProvider';
 
 const faqs = [
-  { q: 'What is SHIVARKAA CALCULATE?', a: 'SHIVARKAA CALCULATE is the ultimate calculation operating system — a modern, AI-powered platform with 120+ calculators for finance, health, science, engineering, business, and everyday life.' },
-  { q: 'Are the calculators free to use?', a: 'Yes! All standard calculators are completely free. Premium AI-powered features and advanced tools are available with a subscription.' },
+  { q: 'What is Real Calculator 365?', a: 'Real Calculator 365 is the ultimate calculation operating system — a modern platform with 120+ calculators for finance, health, science, engineering, business, and everyday life. No sign-in, no premium, no hassle — all handled by ads.' },
+  { q: 'Are the calculators free to use?', a: 'Yes! All 120+ calculators are completely free forever. No premium tiers, no hidden fees, no sign-in required. We show ads to keep everything free.' },
   { q: 'How accurate are the calculations?', a: 'We use scientifically validated formulas with up to 15 decimal places of precision. Our formulas are reviewed by domain experts.' },
-  { q: 'Can I use this on mobile?', a: 'Absolutely. SHIVARKAA CALCULATE is mobile-first and works perfectly on all devices — phones, tablets, and desktops.' },
-  { q: 'What AI features are available?', a: 'Our AI can solve equations step-by-step, explain formulas in plain language, provide financial insights, recommend fitness plans, and tutor you in math.' },
+  { q: 'Can I use this on mobile?', a: 'Absolutely. Real Calculator 365 is mobile-first and works perfectly on all devices — phones, tablets, and desktops.' },
+  { q: 'Do I need to create an account?', a: 'No account required! Just visit any calculator and start using it immediately. All features are accessible without sign-in.' },
   { q: 'Is my data secure?', a: 'Yes. We don\'t store personal calculation data. All computations happen client-side or in encrypted server sessions.' },
 ];
 
 export function FAQSection() {
   const [open, setOpen] = useState<number | null>(null);
+  const { dict } = useI18n();
 
   return (
     <section className="py-24 bg-gray-50/50 dark:bg-white/[0.02]">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
-          <h2 className="font-display text-3xl font-bold mb-4">Frequently Asked Questions</h2>
+          <h2 className="font-display text-3xl font-bold mb-4">{dict.faq.title}</h2>
         </div>
 
         <div className="space-y-3">

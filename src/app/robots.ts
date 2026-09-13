@@ -1,3 +1,5 @@
+export const dynamic = 'force-static';
+
 import { MetadataRoute } from 'next';
 
 export default function robots(): MetadataRoute.Robots {
@@ -5,7 +7,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       { userAgent: '*', allow: '/', disallow: ['/api/', '/admin/'] },
     ],
-    sitemap: 'https://shivarkaa.com/sitemap.xml',
+    sitemap: 'https://realcalculator365.com/sitemap.xml',
   };
 }
 

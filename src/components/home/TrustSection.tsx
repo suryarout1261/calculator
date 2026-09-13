@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { Zap, Shield, Smartphone, Target, Globe } from 'lucide-react';
+import { useI18n } from '@/components/LocaleProvider';
 
 const stats = [
   { icon: Zap, label: 'Instant Results', value: '<50ms' },
@@ -12,13 +13,15 @@ const stats = [
 ];
 
 export function TrustSection() {
+  const { dict } = useI18n();
+
   return (
     <section className="py-24">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
-          <h2 className="font-display text-3xl sm:text-4xl font-bold mb-4">Built for Performance & Trust</h2>
+          <h2 className="font-display text-3xl sm:text-4xl font-bold mb-4">{dict.trust.title}</h2>
           <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-            Enterprise-grade infrastructure delivering instant, accurate calculations worldwide.
+            {dict.trust.subtitle}
           </p>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-6">

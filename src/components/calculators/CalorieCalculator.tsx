@@ -1,9 +1,14 @@
 'use client';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+
+import { useI18n } from '@/components/LocaleProvider';
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 
 export function CalorieCalculator() {
+  const { locale, dict } = useI18n();
+
   const [gender, setGender] = useState<'male' | 'female'>('male');
   const [age, setAge] = useState('25');
   const [weight, setWeight] = useState('70');
@@ -55,18 +60,16 @@ export function CalorieCalculator() {
         </div>
         <div className="sm:col-span-2">
           <label className="block text-sm font-medium mb-2">Activity Level</label>
-          <select value={activity} onChange={(e) => setActivity(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 focus:outline-none focus:ring-2 focus:ring-brand-sapphire/50">
-            <option value="1.2">Sedentary (little or no exercise)</option>
-            <option value="1.375">Lightly active (1-3 days/week)</option>
-            <option value="1.55">Moderately active (3-5 days/week)</option>
-            <option value="1.725">Very active (6-7 days/week)</option>
-            <option value="1.9">Extra active (very hard exercise)</option>
-          </select>
+          <SegmentedControl label="" value={activity} onChange={(v) => setActivity(v)} options={[{value:'1.2',label:'Sedentary'},{value:'1.375',label:'Light'},{value:'1.55',label:'Mod'},{value:'1.725',label:'Active'},{value:'1.9',label:'Extra'}]} />
         </div>
       </div>
 
-      <button onClick={calculate} className="btn-primary w-full text-center">Calculate Calories</button>
+      <motion.button
+        onClick={calculate}
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
+        className="btn-primary w-full text-center"
+      >Calculate Calories</motion.button>
 
       {result && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-8 grid sm:grid-cols-3 gap-4">

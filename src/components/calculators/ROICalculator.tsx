@@ -1,5 +1,7 @@
 'use client';
 
+import { useI18n } from '@/components/LocaleProvider';
+
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -7,6 +9,8 @@ import { CalculatorActions } from './CalculatorActions';
 import { useAppStore } from '@/lib/store';
 
 export function ROICalculator() {
+  const { locale, dict } = useI18n();
+
   const [invested, setInvested] = useState('100000');
   const [returned, setReturned] = useState('150000');
   const [yearsHeld, setYearsHeld] = useState('3');
@@ -51,7 +55,12 @@ export function ROICalculator() {
             <input type="number" value={yearsHeld} onChange={(e) => setYearsHeld(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-sapphire/50" />
           </div>
         </div>
-        <button onClick={calculate} className="btn-primary w-full text-center">Calculate ROI</button>
+        <motion.button
+          onClick={calculate}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          className="btn-primary w-full text-center"
+        >Calculate ROI</motion.button>
 
         {result && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-8">

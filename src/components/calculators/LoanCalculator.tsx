@@ -1,9 +1,13 @@
 'use client';
 
+import { useI18n } from '@/components/LocaleProvider';
+
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 
 export function LoanCalculator() {
+  const { locale, dict } = useI18n();
+
   const [amount, setAmount] = useState('500000');
   const [rate, setRate] = useState('10');
   const [years, setYears] = useState('5');
@@ -38,7 +42,12 @@ export function LoanCalculator() {
             className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 focus:outline-none focus:ring-2 focus:ring-brand-sapphire/50" />
         </div>
       </div>
-      <button onClick={calculate} className="btn-primary w-full text-center">Calculate</button>
+      <motion.button
+        onClick={calculate}
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
+        className="btn-primary w-full text-center"
+      >Calculate</motion.button>
       {result && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-8 grid sm:grid-cols-3 gap-4">
           <div className="p-4 rounded-xl bg-brand-sapphire/10 text-center">

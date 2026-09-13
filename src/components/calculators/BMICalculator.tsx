@@ -1,46 +1,67 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { CalculatorActions } from './CalculatorActions';
 import { useAppStore } from '@/lib/store';
+import { AppleSlider } from '@/components/ui/AppleSlider';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { ColorRange, BMI_ZONES } from '@/components/ui/ColorRange';
+import { AnimatedResultCard, ResultFrame } from '@/components/ui/AnimatedResultCard';
+import { Scale, Ruler, Activity } from 'lucide-react';
+import { useI18n } from '@/components/LocaleProvider';
+import { FreeBanner } from '@/components/ui/FreeBanner';
 
 export function BMICalculator() {
-  const [weight, setWeight] = useState('');
-  const [height, setHeight] = useState('');
+  const { locale, dict } = useI18n();
+  const calcDict = dict.calculators?.['bmi'] || { label: 'BMI Calculator', description: 'Calculate Body Mass Index', button: 'Calculate', result: {}, inputs: {} };
+
   const [unit, setUnit] = useState<'metric' | 'imperial'>('metric');
-  const [result, setResult] = useState<{ bmi: number; category: string; color: string } | null>(null);
+  const [weight, setWeight] = useState(70);
+  const [height, setHeight] = useState(175);
   const { addToHistory } = useAppStore();
 
-  const calculate = () => {
-    const w = parseFloat(weight);
-    const h = parseFloat(height);
-    if (!w || !h) return;
-
+  // Real-time calculation (no button needed)
+  const result = useMemo(() => {
+    if (!weight || !height) return null;
     let bmi: number;
     if (unit === 'metric') {
-      bmi = w / ((h / 100) ** 2);
+      bmi = weight / ((height / 100) ** 2);
     } else {
-      bmi = (w / (h ** 2)) * 703;
+      bmi = (weight / (height ** 2)) * 703;
     }
-
-    let category: string;
-    let color: string;
-    if (bmi < 18.5) { category = 'Underweight'; color = 'text-blue-500'; }
-    else if (bmi < 25) { category = 'Normal Weight'; color = 'text-green-500'; }
-    else if (bmi < 30) { category = 'Overweight'; color = 'text-yellow-500'; }
-    else { category = 'Obese'; color = 'text-red-500'; }
-
     const bmiRounded = Math.round(bmi * 10) / 10;
-    setResult({ bmi: bmiRounded, category, color });
+    let category: string;
+    const catMap = { en: { under: 'Underweight', normal: 'Normal Weight', over: 'Overweight', obese: 'Obese' }, es: { under: 'Bajo peso', normal: 'Peso normal', over: 'Sobrepeso', obese: 'Obeso' }, ja: { under: '低体重', normal: '普通体重', over: '過体重', obese: '肥満' }, fr: { under: 'Insuffisant', normal: 'Normal', over: 'Surpoids', obese: 'Obèse' }, de: { under: 'Untergewicht', normal: 'Normalgewicht', over: 'Übergewicht', obese: 'Adipös' }, pt: { under: 'Abaixo do peso', normal: 'Peso normal', over: 'Sobrepeso', obese: 'Obeso' }, ko: { under: '저체중', normal: '정상체중', over: '과체중', obese: '비만' }, it: { under: 'Sottopeso', normal: 'Peso normale', over: 'Sovrappeso', obese: 'Obeso' } };
+    const m = (catMap as any)[locale] || (catMap as any).en;
+    if (bmiRounded < 18.5) category = m.under;
+    else if (bmiRounded < 25) category = m.normal;
+    else if (bmiRounded < 30) category = m.over;
+    else category = m.obese;
 
-    addToHistory({
-      calculatorId: 'bmi',
-      calculatorTitle: 'BMI Calculator',
-      inputs: { weight: w, height: h, unit },
-      result: { bmi: bmiRounded, category },
-    });
-  };
+    const [heightM] = unit === 'metric' ? [height / 100] : [height * 0.0254];
+    const healthyMin = Math.round(18.5 * ((heightM) ** 2));
+    const healthyMax = Math.round(24.9 * ((heightM) ** 2));
+
+    return { bmi: bmiRounded, category, healthyMin, healthyMax };
+  }, [weight, height, unit]);
+
+  // Save to history on value change (debounced)
+  useEffect(() => {
+    if (!result || !weight || !height) return;
+    const t = setTimeout(() => {
+      addToHistory({
+        calculatorId: 'bmi',
+        calculatorTitle: calcDict.label,
+        inputs: { weight, height, unit },
+        result: { bmi: result.bmi, category: result.category },
+      });
+    }, 1200);
+    return () => clearTimeout(t);
+  }, [result, weight, height, unit, addToHistory]);
+
+  const weightRange = unit === 'metric' ? { min: 30, max: 200, step: 0.5, suffix: ' kg' } : { min: 65, max: 440, step: 0.5, suffix: ' lbs' };
+  const heightRange = unit === 'metric' ? { min: 120, max: 220, step: 1, suffix: ' cm' } : { min: 48, max: 87, step: 1, suffix: ' in' };
 
   return (
     <CalculatorActions
@@ -48,73 +69,96 @@ export function BMICalculator() {
       result={result ? { bmi: result.bmi, category: result.category } : null}
       inputs={{ weight, height, unit }}
     >
-      <div className="glass-card p-8">
+      <FreeBanner />
+
+      <div className="glass-card p-4 sm:p-8">
+        {/* SEO-friendly intro */}
+        <div className="mb-8 pb-6 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black font-display text-gray-900 dark:text-white mb-3 tracking-tight">
+            Body Mass Index — Live
+          </h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            {locale === 'es' ? 'Arrastra los controles y observa tu IMC al instante.' : locale === 'ja' ? 'スライダーを動かすとBMIが更新されます。' : locale === 'fr' ? 'Déplacez les curseurs et observez votre IMC.' : locale === 'de' ? 'Ziehe die Regler und beobachte dein BMI.' : locale === 'pt' ? 'Arraste os controles e veja seu IMC.' : locale === 'ko' ? '슬라이더를 움직이면 BMI가 업데이트됩니다.' : locale === 'it' ? 'Sposta i cursori e guarda il BMI.' : 'Drag sliders to see your BMI update instantly.'}
+          </p>
+        </div>
+
         {/* Unit Toggle */}
-        <div className="flex gap-2 mb-6">
-          {(['metric', 'imperial'] as const).map((u) => (
-            <button
-              key={u}
-              onClick={() => { setUnit(u); setResult(null); }}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${unit === u ? 'bg-brand-sapphire text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300'}`}
-            >
-              {u === 'metric' ? 'Metric (kg/cm)' : 'Imperial (lbs/in)'}
-            </button>
-          ))}
+        <div className="mb-8">
+          <SegmentedControl
+            label={locale === 'es' ? 'Unidades' : locale === 'ja' ? '単位' : locale === 'fr' ? 'Unités' : locale === 'de' ? 'Einheiten' : locale === 'pt' ? 'Unidades' : locale === 'ko' ? '단위' : locale === 'it' ? 'Unità' : 'Units'}
+            value={unit}
+            onChange={(v) => setUnit(v)}
+            options={[
+              { value: 'metric', label: 'Metric', icon: <Scale className="w-4 h-4" /> },
+              { value: 'imperial', label: 'Imperial', icon: <Ruler className="w-4 h-4" /> },
+            ]}
+          />
         </div>
 
-        <div className="grid sm:grid-cols-2 gap-4 mb-6">
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Weight ({unit === 'metric' ? 'kg' : 'lbs'})
-            </label>
-            <input
-              type="number"
-              value={weight}
-              onChange={(e) => setWeight(e.target.value)}
-              placeholder={unit === 'metric' ? '70' : '154'}
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-sapphire/50"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Height ({unit === 'metric' ? 'cm' : 'inches'})
-            </label>
-            <input
-              type="number"
-              value={height}
-              onChange={(e) => setHeight(e.target.value)}
-              placeholder={unit === 'metric' ? '175' : '69'}
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-sapphire/50"
-            />
-          </div>
-        </div>
+        {/* Inputs */}
+        <motion.div layout className="space-y-8 mb-2">
+          <AppleSlider
+            label={(calcDict.inputs as any)?.Weight || (locale === 'es' ? 'Peso' : locale === 'ja' ? '体重' : locale === 'fr' ? 'Poids' : locale === 'de' ? 'Gewicht' : locale === 'pt' ? 'Peso' : locale === 'ko' ? '체중' : locale === 'it' ? 'Peso' : 'Weight')}
+            value={weight}
+            onChange={setWeight}
+            min={weightRange.min}
+            max={weightRange.max}
+            step={weightRange.step}
+            suffix={weightRange.suffix}
+            helpText={`Healthy weight for ${height}${heightRange.suffix}${result ? `: ${result.healthyMin}–${result.healthyMax}${weightRange.suffix}` : ''}`}
+          />
+          <AppleSlider
+            label={(calcDict.inputs as any)?.Height || (locale === 'es' ? 'Altura' : locale === 'ja' ? '身長' : locale === 'fr' ? 'Taille' : locale === 'de' ? 'Größe' : locale === 'pt' ? 'Altura' : locale === 'ko' ? '키' : locale === 'it' ? 'Altezza' : 'Height')}
+            value={height}
+            onChange={setHeight}
+            min={heightRange.min}
+            max={heightRange.max}
+            step={heightRange.step}
+            suffix={heightRange.suffix}
+          />
+        </motion.div>
 
-        <button onClick={calculate} className="btn-primary w-full text-center">
-          Calculate BMI
-        </button>
-
-        {result && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mt-8 p-6 rounded-xl bg-gray-50 dark:bg-gray-800 text-center"
-          >
-            <p className="text-sm text-gray-500 mb-1">Your BMI</p>
-            <p className={`font-display text-5xl font-bold ${result.color}`}>{result.bmi}</p>
-            <p className={`font-semibold mt-2 ${result.color}`}>{result.category}</p>
-
-            {/* Visual scale */}
-            <div className="mt-6 h-3 rounded-full bg-gradient-to-r from-blue-400 via-green-400 via-yellow-400 to-red-500 relative">
-              <div
-                className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white border-2 border-brand-black rounded-full shadow"
-                style={{ left: `${Math.min(Math.max((result.bmi - 15) / 25 * 100, 0), 100)}%` }}
+        {/* Result */}
+        <ResultFrame show={!!result} delay={0.1}>
+          <motion.div layout className="mt-8 space-y-6">
+            <div className="grid sm:grid-cols-2 gap-4">
+              <AnimatedResultCard
+                label={(calcDict.result as any)?.['Your BMI'] || (locale === 'es' ? 'Tu IMC' : locale === 'ja' ? 'あなたのBMI' : locale === 'fr' ? 'Votre IMC' : locale === 'de' ? 'Dein BMI' : locale === 'pt' ? 'Seu IMC' : locale === 'ko' ? '당신의 BMI' : locale === 'it' ? 'Il tuo BMI' : 'Your BMI')}
+                value={result?.bmi ?? 0}
+                icon={<Activity className="w-3.5 h-3.5" />}
+                badge={result?.category}
+                badgeColor="bg-brand-sapphire/10 text-brand-sapphire"
+                gradient="from-brand-sapphire/10 to-blue-500/5"
+              />
+              <AnimatedResultCard
+                label="Healthy Range"
+                value={`${result?.healthyMin ?? 0}–${result?.healthyMax ?? 0}`}
+                suffix={weightRange.suffix}
+                gradient="from-green-500/10 to-emerald-500/5"
+                delay={0.1}
               />
             </div>
-            <div className="flex justify-between text-[10px] text-gray-400 mt-1">
-              <span>15</span><span>18.5</span><span>25</span><span>30</span><span>40</span>
-            </div>
+
+            {/* Segmented color range */}
+            {result && (
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35, delay: 0.15, ease: [0.32, 0.72, 0, 1] }}
+                className="rounded-2xl p-4 sm:p-6 bg-white dark:bg-gray-900/60 border border-gray-100 dark:border-gray-800 shadow-lg"
+              >
+                <ColorRange
+                  label={locale === 'es' ? 'Escala IMC' : locale === 'ja' ? 'BMIスケール' : locale === 'fr' ? 'Échelle IMC' : locale === 'de' ? 'BMI-Skala' : locale === 'pt' ? 'Escala IMC' : locale === 'ko' ? 'BMI 스케일' : locale === 'it' ? 'Scala BMI' : 'BMI Scale'}
+                  value={result.bmi}
+                  min={10}
+                  max={45}
+                  zones={BMI_ZONES}
+                  markerLabel={`${result.bmi} — ${result.category}`}
+                />
+              </motion.div>
+            )}
           </motion.div>
-        )}
+        </ResultFrame>
       </div>
     </CalculatorActions>
   );

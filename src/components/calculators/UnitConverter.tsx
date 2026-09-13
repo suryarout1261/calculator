@@ -1,7 +1,10 @@
 'use client';
 
+import { useI18n } from '@/components/LocaleProvider';
+
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { CalculatorActions } from './CalculatorActions';
 
 const units: Record<string, { label: string; conversions: Record<string, number> }> = {
@@ -11,6 +14,8 @@ const units: Record<string, { label: string; conversions: Record<string, number>
 };
 
 export function UnitConverter() {
+  const { locale, dict } = useI18n();
+
   const [category, setCategory] = useState('length');
   const [value, setValue] = useState('1');
   const [fromUnit, setFromUnit] = useState('meter');
@@ -52,12 +57,30 @@ export function UnitConverter() {
             </button>
           ))}
         </div>
-        <div className="grid sm:grid-cols-3 gap-4 mb-6">
-          <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Value</label><input type="number" value={value} onChange={(e) => setValue(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-sapphire/50" /></div>
-          <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">From</label><select value={fromUnit} onChange={(e) => setFromUnit(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-sapphire/50">{unitList.map(u => <option key={u} value={u}>{u}</option>)}</select></div>
-          <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">To</label><select value={toUnit} onChange={(e) => setToUnit(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-sapphire/50">{unitList.map(u => <option key={u} value={u}>{u}</option>)}</select></div>
+        <div className="space-y-6 mb-6">
+          <div>
+            <label className="block text-sm font-bold text-gray-900 dark:text-white tracking-wide uppercase mb-2">Value</label>
+            <input type="number" value={value} onChange={(e) => setValue(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-sapphire/50" />
+          </div>
+          <div>
+            <label className="block text-sm font-bold text-gray-900 dark:text-white tracking-wide uppercase mb-2">From</label>
+            <div className="overflow-x-auto w-full">
+              <SegmentedControl options={unitList.map(u => ({value: u, label: u}))} value={fromUnit} onChange={(v) => setFromUnit(v)} size="md" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-bold text-gray-900 dark:text-white tracking-wide uppercase mb-2">To</label>
+            <div className="overflow-x-auto w-full">
+              <SegmentedControl options={unitList.map(u => ({value: u, label: u}))} value={toUnit} onChange={(v) => setToUnit(v)} size="md" />
+            </div>
+          </div>
         </div>
-        <button onClick={convert} className="btn-primary w-full text-center">Convert</button>
+        <motion.button
+          onClick={convert}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          className="btn-primary w-full text-center"
+        >Convert</motion.button>
         {result && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-8 p-6 rounded-xl bg-brand-sapphire/10 text-center">
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{value} {fromUnit} =</p>

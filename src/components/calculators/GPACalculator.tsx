@@ -1,5 +1,7 @@
 'use client';
 
+import { useI18n } from '@/components/LocaleProvider';
+
 import { useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -12,6 +14,8 @@ const gradePoints: Record<string, number> = {
 };
 
 export function GPACalculator() {
+  const { locale, dict } = useI18n();
+
   const [courses, setCourses] = useState<Course[]>([
     { name: '', credits: '3', grade: 'A' },
     { name: '', credits: '3', grade: 'B+' },
@@ -58,7 +62,12 @@ export function GPACalculator() {
         <Plus className="w-4 h-4" /> Add Course
       </button>
 
-      <button onClick={calculate} className="btn-primary w-full text-center">Calculate GPA</button>
+      <motion.button
+        onClick={calculate}
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
+        className="btn-primary w-full text-center"
+      >Calculate GPA</motion.button>
 
       {gpa !== null && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-8 text-center p-6 rounded-xl bg-brand-sapphire/10">

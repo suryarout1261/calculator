@@ -1,11 +1,16 @@
 'use client';
 
+import { useI18n } from '@/components/LocaleProvider';
+
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { CalculatorActions } from './CalculatorActions';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { useAppStore } from '@/lib/store';
 
 export function GSTCalculator() {
+  const { locale, dict } = useI18n();
+
   const [amount, setAmount] = useState('10000');
   const [gstRate, setGstRate] = useState('18');
   const [mode, setMode] = useState<'exclusive' | 'inclusive'>('exclusive');
@@ -53,15 +58,15 @@ export function GSTCalculator() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">GST Rate (%)</label>
-            <select value={gstRate} onChange={(e) => setGstRate(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-sapphire/50">
-              <option value="5">5%</option>
-              <option value="12">12%</option>
-              <option value="18">18%</option>
-              <option value="28">28%</option>
-            </select>
+            <SegmentedControl label="GST Rate" value={String(gstRate)} onChange={(v) => setGstRate(Number(v) as any)} options={[{value:'5',label:'5%'},{value:'12',label:'12%'},{value:'18',label:'18%'},{value:'28',label:'28%'}]} />
           </div>
         </div>
-        <button onClick={calculate} className="btn-primary w-full text-center">Calculate GST</button>
+        <motion.button
+          onClick={calculate}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          className="btn-primary w-full text-center"
+        >Calculate GST</motion.button>
 
         {result && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-8 grid sm:grid-cols-3 gap-4">

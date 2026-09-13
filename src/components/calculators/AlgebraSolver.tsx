@@ -11,9 +11,10 @@ export function AlgebraSolver() {
   const { addToHistory } = useAppStore();
 
   const solve = () => {
-    // Replace caret with superscript 2 for parser compatibility; preserve other exponents as-is
     const raw = equation.trim();
     if (!raw) return;
+
+    // Normalize caret notation to superscript for parser compatibility
     const eq = raw.replace(/\^2/g, '²').replace(/\^3/g, '³').replace(/\^4/g, '⁴');
 
     try {
@@ -52,8 +53,8 @@ export function AlgebraSolver() {
         solution = `x = ${Math.round(x * 10000) / 10000}`;
         steps.push(`Solution: ${solution}`);
       } else {
-        // Try quadratic: ax² + bx + c = 0
-        const quadMatch = eq.match(/^(-?\d*\.?\d*)?\s*x\^?²?\s*([+-]\s*\d*\.?\d*)?\s*x?\s*([+-]\s*\d+\.?\d*)?\s*=\s*0$/);
+        // Try quadratic: ax² / ax^2 + bx + c = 0 (normalized from ^2)
+        const quadMatch = eq.match(/^(-?\d*\.?\d*)?\s*x(?:\^?²?)?\s*([+-]\s*\d*\.?\d*)?\s*x?\s*([+-]\s*\d+\.?\d*)?\s*=\s*0$/);
         if (quadMatch) {
           const a = quadMatch[1] ? parseFloat(quadMatch[1]) || 1 : 1;
           const b = quadMatch[2] ? parseFloat(quadMatch[2].replace(/\s/g, '')) : 0;
@@ -73,8 +74,8 @@ export function AlgebraSolver() {
         } else {
           // Simple evaluation: try basic arithmetic
           steps.push(`Attempting to solve: ${eq}`);
-          solution = 'Enter a linear equation like "2x + 5 = 15" or "3x - 7 = 20"';
-          steps.push('Supported: ax + b = c, quadratic ax² + bx + c = 0');
+          solution = 'Enter a linear equation (e.g. 2x + 5 = 15) or quadratic (e.g. x^2 - 5x + 6 = 0)';
+          steps.push('Supported: linear ax + b = c and quadratic ax² + bx + c = 0 only');
         }
       }
 
@@ -96,7 +97,7 @@ export function AlgebraSolver() {
             onKeyDown={(e) => e.key === 'Enter' && solve()}
           />
           <p className="text-sm text-brand-sapphire font-medium mt-2">Use ^ for powers. Example: x^2 - 5x + 6 = 0</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Supports: linear (2x + 5 = 15), quadratic (x^2 - 5x + 6 = 0)</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Supported: linear (2x + 5 = 15), quadratic (x^2 - 5x + 6 = 0). Higher-order and multi-variable equations are not supported.</p>
         </div>
         <button onClick={solve} className="btn-primary w-full text-center">Solve Equation</button>
 

@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { CATEGORIES } from '@/lib/store';
+import { useI18n } from '@/components/LocaleProvider';
+import { format } from '@/lib/i18n';
 
 const categoryIcons: Record<string, { icon: React.ElementType; color: string; bg: string }> = {
   finance: { icon: DollarSign, color: 'text-green-500', bg: 'bg-green-500/10' },
@@ -21,19 +23,21 @@ const categoryIcons: Record<string, { icon: React.ElementType; color: string; bg
 };
 
 export function CategoryGrid() {
+  const { dict } = useI18n();
+
   return (
     <section id="categories" className="py-24 bg-gray-50/50 dark:bg-gray-900/50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <h2 className="font-display text-3xl sm:text-4xl font-bold mb-4">
-            Every Calculator You&apos;ll Ever Need
+            {dict.categories.title}
           </h2>
           <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-            120+ precision calculators across {CATEGORIES.length} categories. Powered by AI and built for speed.
+            {format(dict.categories.subtitle, { n: CATEGORIES.length })}
           </p>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
           {CATEGORIES.map((cat, i) => {
             const style = categoryIcons[cat.id] || { icon: Calculator, color: 'text-gray-500', bg: 'bg-gray-500/10' };
             const Icon = style.icon;
@@ -52,8 +56,8 @@ export function CategoryGrid() {
                   <div className={`p-3 rounded-xl ${style.bg} group-hover:scale-110 transition-transform`}>
                     <Icon className={`w-6 h-6 ${style.color}`} />
                   </div>
-                  <h3 className="font-semibold text-sm">{cat.label}</h3>
-                  <span className="text-xs text-gray-500">{cat.count}+ tools</span>
+                  <h3 className="font-semibold text-sm">{dict.categoryLabels[cat.id] ?? cat.label}</h3>
+                  <span className="text-xs text-gray-500">{cat.count}+ {dict.categories.tools}</span>
                 </Link>
               </motion.div>
             );

@@ -1,47 +1,51 @@
-import { Metadata } from 'next';
-import Link from 'next/link';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
-
-export const metadata: Metadata = {
-  title: 'Blog — Calculation Tips, Guides & Tutorials',
-  description: 'Learn about finance, math, health, and science calculations with expert guides and tutorials.',
-};
-
-const posts = [
-  { slug: 'how-bmi-works', title: 'How BMI Works: A Complete Guide', excerpt: 'Understand the Body Mass Index formula, what it measures, its limitations, and how to interpret your results accurately.', category: 'Health', date: '2026-05-15' },
-  { slug: 'compound-interest-explained', title: 'Compound Interest Explained: The 8th Wonder of the World', excerpt: 'Learn how compound interest works, the formula behind it, and strategies to maximize your investment growth.', category: 'Finance', date: '2026-05-10' },
-  { slug: 'best-sip-strategy', title: 'Best SIP Strategy for 2026', excerpt: 'A comprehensive guide to systematic investment plans, optimal monthly amounts, and fund selection criteria.', category: 'Finance', date: '2026-05-05' },
-  { slug: 'understanding-emi', title: 'Understanding EMI: Home Loan vs Personal Loan', excerpt: 'Compare EMI calculations for different loan types, learn amortization schedules, and find the best rates.', category: 'Finance', date: '2026-04-28' },
-  { slug: 'calories-vs-macros', title: 'Calories vs Macros: What Actually Matters', excerpt: 'The science behind calorie counting, macro tracking, and which approach works best for your fitness goals.', category: 'Health', date: '2026-04-20' },
-  { slug: 'algebra-made-simple', title: 'Algebra Made Simple: From Basics to Advanced', excerpt: 'Master algebraic concepts with step-by-step explanations, visual examples, and practice problems.', category: 'Math', date: '2026-04-15' },
-];
+import { BookOpen, Sparkles } from 'lucide-react';
 
 export default function BlogPage() {
   return (
     <>
       <Header />
       <main className="pt-24 pb-16">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="font-display text-4xl font-bold mb-3">Blog</h1>
-          <p className="text-gray-600 dark:text-gray-400 mb-12">Expert guides on calculations, formulas, and strategies.</p>
+        <section className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h1 className="font-display text-4xl font-bold text-gray-900 dark:text-white mb-3">Blog</h1>
+          <p className="text-gray-600 dark:text-gray-400 mb-10 text-lg">Notes on calculators, design, and making math feel easy.</p>
 
           <div className="space-y-6">
-            {posts.map((post) => (
-              <Link key={post.slug} href={`/blog/${post.slug}`} className="block glass-card p-6 hover:shadow-xl transition-all group">
+            {[
+              {
+                title: 'Why We Removed the Calculate Button',
+                date: 'Aug 2026',
+                excerpt: 'Real-time calculation eliminates friction. When users drag a slider, they should see the answer immediately — not after a second click. We rebuilt BMI, Body Fat, and 50+ calculators on this principle.',
+                tag: 'Product',
+              },
+              {
+                title: 'Designing Apple-Style Range Sliders for the Web',
+                date: 'Jul 2026',
+                excerpt: 'Draggable thumbs, spring physics, and smooth bubble tooltips sound simple until you try to make them feel native on both mouse and touch. Here is how we tuned stiffness and damping for a premium feel.',
+                tag: 'Engineering',
+              },
+              {
+                title: 'Making Calculators Accessible to Everyone',
+                date: 'Jun 2026',
+                excerpt: 'No account, no premium, no region lock. We redesigned the entire architecture around local storage and server-side rendering so the app works offline, in dark mode, and in every browser.',
+                tag: 'Accessibility',
+              },
+            ].map((post) => (
+              <article key={post.title} className="glass-card p-6 hover:shadow-xl transition">
                 <div className="flex items-center gap-3 mb-2">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-brand-gold">{post.category}</span>
-                  <span className="text-[10px] text-gray-400">{post.date}</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-brand-sapphire bg-brand-sapphire/10 px-2 py-0.5 rounded-full">{post.tag}</span>
+                  <span className="text-xs text-gray-400">{post.date}</span>
                 </div>
-                <h2 className="font-display text-xl font-bold group-hover:text-brand-sapphire transition-colors">{post.title}</h2>
-                <p className="text-sm text-gray-500 mt-2">{post.excerpt}</p>
-              </Link>
+                <h2 className="font-display text-xl font-bold text-gray-900 dark:text-white mb-2">{post.title}</h2>
+                <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">{post.excerpt}</p>
+                <a href="#" className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-sapphire hover:text-blue-700 mt-3 transition">Read more <BookOpen className="w-3.5 h-3.5" /></a>
+              </article>
             ))}
           </div>
-        </div>
+        </section>
       </main>
       <Footer />
     </>
   );
 }
-

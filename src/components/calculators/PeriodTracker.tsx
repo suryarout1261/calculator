@@ -1,5 +1,7 @@
 'use client';
 
+import { useI18n } from '@/components/LocaleProvider';
+
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, Droplets, Heart, Moon, Activity, Sparkles } from 'lucide-react';
@@ -11,6 +13,8 @@ interface CycleEntry {
 }
 
 export function PeriodTrackerApp() {
+  const { locale, dict } = useI18n();
+
   const [lastPeriod, setLastPeriod] = useState(new Date().toISOString().slice(0, 10));
   const [cycleLength, setCycleLength] = useState('28');
   const [periodLength, setPeriodLength] = useState('5');

@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { CalculatorActions } from '@/components/calculators/CalculatorActions';
@@ -122,72 +122,139 @@ function scalarMultiply(m: Matrix, s: number): Matrix {
   return m.map(row => row.map(v => v * s));
 }
 
-function inverse2(m: Matrix): Matrix {
-  const d = det2(m);
-  if (d === 0) return [[NaN, NaN], [NaN, NaN]];
-  return [[m[1][1]/d, -m[0][1]/d], [-m[1][0]/d, m[0][0]/d]];
-}
-
 export function MatrixCalculator() {
   const { locale, dict } = useI18n();
   const [rows, setRows] = useState(2);
   const [cols, setCols] = useState(2);
   const [values, setValues] = useState<Record<string, string>>(() => toMatrixVals(createMatrix(2, 2, 1)));
+  const [op, setOp] = useState<'properties' | 'addition' | 'subtraction' | 'multiplication' | 'scalar' | 'transpose'>('properties');
+  const [scalar, setScalar] = useState(2);
+  const [bRows, setBRows] = useState(2);
+  const [bCols, setBCols] = useState(2);
+  const [bValues, setBValues] = useState<Record<string, string>>(() => toMatrixVals(createMatrix(2, 2, 1)));
 
-  // Update grid when dimensions change; preserve existing, fill rest with 0
+  // Dimension change for matrix A
   const handleDim = (r: number, c: number) => {
     setRows(r); setCols(c);
     const newM = createMatrix(r, c, 0);
-    for (let i = 0; i < Math.min(r, 2); i++) for (let j = 0; j < Math.min(c, 2); j++) newM[i][j] = parseFloat(values[`${i}-${j}`]) || 0;
+    for (let i = 0; i < Math.min(r, rows); i++) for (let j = 0; j < Math.min(c, cols); j++) newM[i][j] = parseFloat(values[`${i}-${j}`]) || 0;
     setValues(toMatrixVals(newM));
   };
 
-  const matrix = useMemo(() => {
-    const m: Matrix = Array.from({ length: rows }, (_, i) => Array.from({ length: cols }, (_, j) => parseFloat(values[`${i}-${j}`]) || 0));
-    return m;
+  const matrixA = useMemo(() => {
+    return Array.from({ length: rows }, (_, i) => Array.from({ length: cols }, (_, j) => parseFloat(values[`${i}-${j}`]) || 0));
   }, [rows, cols, values]);
 
-  const result = useMemo(() => {
-    if (rows === cols && rows >= 2 && rows <= 6) {
-      const d = detGeneral(matrix);
-      return {
-        'Determinant': Math.abs(d) < 1e-10 ? 0 : d,
-        'Trace': traceMatrix(matrix),
-        'Inverse': (rows === cols && rows <= 6) ? inverseGeneral(matrix) : null,
-        'Rank': rankMatrix(matrix),
-        'Nullity': (rows === cols ? cols : cols) - rankMatrix(matrix),
-        'Size': `${rows}×${cols}`
-      };
+  const matrixB = useMemo(() => {
+    return Array.from({ length: bRows }, (_, i) => Array.from({ length: bCols }, (_, j) => parseFloat(bValues[`${i}-${j}`]) || 0));
+  }, [bRows, bCols, bValues]);
+
+  // Dynamic B dimensions for multiplication when A columns change
+  useEffect(() => {
+    if (op === 'multiplication') {
+      setBRows(cols);
+      setBCols(2);
+      const newM = createMatrix(cols, 2, 0);
+      for (let i = 0; i < Math.min(cols, bRows); i++) for (let j = 0; j < Math.min(2, bCols); j++) newM[i][j] = parseFloat(bValues[`${i}-${j}`]) || 0;
+      setBValues(toMatrixVals(newM));
+      setBRows(cols);
+      setBCols(2);
     }
-    if (rows === cols && (rows < 2 || rows > 6)) {
-      return { 'Determinant': 'N/A', 'Trace': 'N/A', 'Inverse': null, 'Rank': rankMatrix(matrix), 'Nullity': cols - rankMatrix(matrix), 'Size': `${rows}×${cols}` };
+  }, [cols, op]);
+
+  const handleBDim = (r: number, c: number) => {
+    setBRows(r); setBCols(c);
+    const newM = createMatrix(r, c, 0);
+    for (let i = 0; i < Math.min(r, bRows); i++) for (let j = 0; j < Math.min(c, bCols); j++) newM[i][j] = parseFloat(bValues[`${i}-${j}`]) || 0;
+    setBValues(toMatrixVals(newM));
+  };
+
+  const propertiesResult = useMemo(() => {
+    const r = rankMatrix(matrixA);
+    const d = (rows === cols && rows >= 2 && rows <= 6) ? detGeneral(matrixA) : NaN;
+    return {
+      'Determinant': (rows === cols && rows >= 2 && rows <= 6) ? (Math.abs(d) < 1e-10 ? 0 : d) : 'N/A — determinant only exists for square matrices',
+      'Trace': (rows === cols && rows >= 2 && rows <= 6) ? traceMatrix(matrixA) : 'N/A',
+      'Inverse': (rows === cols && rows >= 2 && rows <= 6) ? (inverseGeneral(matrixA) ? 'Calculated below' : 'Matrix is singular and has no inverse') : (rows === cols ? 'N/A' : 'N/A — only square matrices'),
+      'Rank': r,
+      'Nullity': cols - r,
+      'Size': `${rows}×${cols}`
+    };
+  }, [matrixA, rows, cols]);
+
+  const resultMatrix = useMemo(() => {
+    switch (op) {
+      case 'addition': {
+        const res = addMatrix(matrixA, matrixB);
+        if (res) return { matrix: res, msg: null };
+        return { matrix: null, msg: 'Addition requires identical dimensions (A and B must be the same size).' };
+      }
+      case 'subtraction': {
+        const res = subtractMatrix(matrixA, matrixB);
+        if (res) return { matrix: res, msg: null };
+        return { matrix: null, msg: 'Subtraction requires identical dimensions (A and B must be the same size).' };
+      }
+      case 'multiplication': {
+        const res = multiplyMatrix(matrixA, matrixB);
+        if (res) return { matrix: res, msg: null };
+        return { matrix: null, msg: 'Multiplication requires columns of A = rows of B.' };
+      }
+      case 'scalar': {
+        return { matrix: scalarMultiply(matrixA, scalar), msg: null };
+      }
+      case 'transpose': {
+        return { matrix: transposeMatrix(matrixA), msg: null };
+      }
+      default:
+        return { matrix: null, msg: null };
     }
-    return { 'Determinant': 'N/A — determinant only exists for square matrices', 'Trace': 'N/A', 'Inverse': null, 'Rank': rankMatrix(matrix), 'Nullity': cols - rankMatrix(matrix), 'Size': `${rows}×${cols}` };
-  }, [matrix, rows, cols]);
+  }, [op, matrixA, matrixB, scalar]);
+
+  const inverseMatrix = useMemo(() => {
+    if (rows !== cols) return null;
+    if (rows < 2 || rows > 6) return null;
+    return inverseGeneral(matrixA);
+  }, [matrixA, rows, cols]);
+
+  const opOptions = [
+    { value: 'properties' as const, label: 'Properties' },
+    { value: 'addition' as const, label: 'Addition' },
+    { value: 'subtraction' as const, label: 'Subtraction' },
+    { value: 'multiplication' as const, label: 'Multiplication' },
+    { value: 'scalar' as const, label: 'Scalar' },
+    { value: 'transpose' as const, label: 'Transpose' },
+  ];
 
   return (
-    <CalculatorActions calculatorId="matrix" result={result as any} inputs={{ rows, cols }}>
+    <CalculatorActions calculatorId="matrix" result={op === 'properties' ? (propertiesResult as any) : (resultMatrix.matrix ? resultMatrix.matrix : resultMatrix.msg)} inputs={{ rows, cols, op }}>
       <div className="glass-card p-6 sm:p-8 space-y-6">
         <div>
           <h2 className="text-2xl font-display font-black text-gray-900 dark:text-white mb-2">Matrix Calculator</h2>
-          <p className="text-sm text-gray-600 dark:text-gray-400">Choose rows and columns, enter values, see determinant/trace.</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">Choose dimensions, enter values, perform operations.</p>
         </div>
 
-        {/* Dimension selectors */}
-        <div className="flex flex-wrap gap-4 items-center">
+        {/* Operation selector */}
+        <div>
+          <label className="block text-xs font-bold uppercase tracking-wide text-gray-500 mb-1">Operation</label>
+          <SegmentedControl options={opOptions} value={op} onChange={(v) => setOp(v as any)} size="sm" />
+        </div>
+
+        {/* Dimension selectors - shared segmented control for rows/cols */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wide text-gray-500 mb-1">Rows</label>
+            <label className="block text-xs font-bold uppercase tracking-wide text-gray-500 mb-1">Rows (A)</label>
             <SegmentedControl options={[2,3,4,5,6].map(n=>({value:String(n),label:String(n)}))} value={String(rows)} onChange={(v)=>handleDim(parseInt(v), cols)} size="sm" />
           </div>
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wide text-gray-500 mb-1">Columns</label>
+            <label className="block text-xs font-bold uppercase tracking-wide text-gray-500 mb-1">Columns (A)</label>
             <SegmentedControl options={[2,3,4,5,6].map(n=>({value:String(n),label:String(n)}))} value={String(cols)} onChange={(v)=>handleDim(rows, parseInt(v))} size="sm" />
           </div>
         </div>
 
-        {/* Input grid */}
+        {/* Matrix A input grid */}
         <div className="overflow-x-auto">
-          <div className="inline-block">
+          <div className="inline-block min-w-full">
+            <div className="text-xs font-bold uppercase text-gray-500 mb-1">Matrix A ({rows}×{cols})</div>
             <table className="border-collapse">
               <tbody>
                 {Array.from({ length: rows }).map((_, i) => (
@@ -198,7 +265,7 @@ export function MatrixCalculator() {
                           type="number"
                           value={values[`${i}-${j}`] ?? '0'}
                           onChange={(e) => setValues({ ...values, [`${i}-${j}`]: e.target.value })}
-                          className="w-16 sm:w-20 px-2 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-center text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-sapphire/50"
+                          className="w-14 sm:w-20 px-2 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-center text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-sapphire/50"
                         />
                       </td>
                     ))}
@@ -209,21 +276,140 @@ export function MatrixCalculator() {
           </div>
         </div>
 
-        {/* Output */}
-        <div className="grid sm:grid-cols-3 gap-4">
-          <div className="rounded-2xl bg-brand-sapphire/10 p-4 text-center">
-            <p className="text-xs font-bold uppercase text-brand-sapphire">Determinant</p>
-            <p className="text-2xl font-display font-black text-brand-sapphire">{typeof result.Determinant === 'number' ? result.Determinant.toFixed(4) : result.Determinant}</p>
+        {/* Second matrix for binary ops */}
+        {(op === 'addition' || op === 'subtraction' || op === 'multiplication') && (
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wide text-gray-500 mb-1">Rows (B)</label>
+                <SegmentedControl options={[2,3,4,5,6].map(n=>({value:String(n),label:String(n)}))} value={String(bRows)} onChange={(v)=>handleBDim(parseInt(v), bCols)} size="sm" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wide text-gray-500 mb-1">Columns (B)</label>
+                <SegmentedControl options={[2,3,4,5,6].map(n=>({value:String(n),label:String(n)}))} value={String(bCols)} onChange={(v)=>handleBDim(bRows, parseInt(v))} size="sm" />
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <div className="inline-block min-w-full">
+                <div className="text-xs font-bold uppercase text-gray-500 mb-1">Matrix B ({bRows}×{bCols})</div>
+                <table className="border-collapse">
+                  <tbody>
+                    {Array.from({ length: bRows }).map((_, i) => (
+                      <tr key={i}>
+                        {Array.from({ length: bCols }).map((__, j) => (
+                          <td key={j} className="p-1">
+                            <input
+                              type="number"
+                              value={bValues[`${i}-${j}`] ?? '0'}
+                              onChange={(e) => setBValues({ ...bValues, [`${i}-${j}`]: e.target.value })}
+                              className="w-14 sm:w-20 px-2 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-center text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-sapphire/50"
+                            />
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
-          <div className="rounded-2xl bg-green-500/10 p-4 text-center">
-            <p className="text-xs font-bold uppercase text-green-600">Trace</p>
-            <p className="text-2xl font-display font-black text-green-600">{typeof result.Trace === 'number' ? result.Trace.toFixed(4) : result.Trace}</p>
+        )}
+
+        {/* Scalar input */}
+        {op === 'scalar' && (
+          <div className="flex items-center gap-3">
+            <label className="text-xs font-bold uppercase text-gray-500">Scalar</label>
+            <input
+              type="number"
+              value={scalar}
+              onChange={(e) => setScalar(parseFloat(e.target.value) || 0)}
+              className="w-24 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-sapphire/50"
+            />
           </div>
-          <div className="rounded-2xl bg-purple-500/10 p-4 text-center">
-            <p className="text-xs font-bold uppercase text-purple-600">Size</p>
-            <p className="text-2xl font-display font-black text-purple-600">{result.Size}</p>
+        )}
+
+        {/* Validation / result messages */}
+        {op !== 'properties' && resultMatrix.msg && (
+          <div className="rounded-xl bg-rose-500/10 border border-rose-500/20 p-4 text-rose-700 dark:text-rose-300 text-sm font-medium">{resultMatrix.msg}</div>
+        )}
+
+        {/* Result matrix display for operations */}
+        {op !== 'properties' && resultMatrix.matrix && (
+          <div className="space-y-2">
+            <div className="text-xs font-bold uppercase text-brand-sapphire">Result</div>
+            <div className="overflow-x-auto">
+              <div className="inline-block min-w-full">
+                <table className="border-collapse">
+                  <tbody>
+                    {resultMatrix.matrix.map((row, i) => (
+                      <tr key={i}>
+                        {row.map((v, j) => (
+                          <td key={j} className="p-1">
+                            <div className="w-14 sm:w-20 px-2 py-2 rounded-lg bg-brand-sapphire/10 text-center text-sm font-medium text-brand-sapphire">{typeof v === 'number' ? (Math.abs(v) < 1e-10 ? 0 : Number(v.toFixed(4))).toString() : v}</div>
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Inverse detail for properties */}
+        {op === 'properties' && (rows === cols && rows >= 2 && rows <= 6) && (
+          <div className="space-y-2">
+            <div className="text-xs font-bold uppercase text-brand-sapphire">Inverse ({rows}×{cols})</div>
+            {inverseMatrix ? (
+              <div className="overflow-x-auto">
+                <div className="inline-block min-w-full">
+                  <table className="border-collapse">
+                    <tbody>
+                      {inverseMatrix.map((row, i) => (
+                        <tr key={i}>
+                          {row.map((v, j) => (
+                            <td key={j} className="p-1">
+                              <div className="w-16 sm:w-24 px-2 py-2 rounded-lg bg-purple-500/10 text-center text-sm font-medium text-purple-700 dark:text-purple-300">{typeof v === 'number' ? (Math.abs(v) < 1e-10 ? 0 : Number(v.toFixed(4))).toString() : v}</div>
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-xl bg-rose-500/10 border border-rose-500/20 p-3 text-rose-700 dark:text-rose-300 text-sm font-medium">Matrix is singular and has no inverse</div>
+            )}
+          </div>
+        )}
+
+        {/* Properties output */}
+        {op === 'properties' && (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="rounded-2xl bg-brand-sapphire/10 p-4 text-center">
+              <p className="text-xs font-bold uppercase text-brand-sapphire">Determinant</p>
+              <p className="text-2xl font-display font-black text-brand-sapphire">{typeof propertiesResult.Determinant === 'number' ? propertiesResult.Determinant.toFixed(4) : propertiesResult.Determinant}</p>
+            </div>
+            <div className="rounded-2xl bg-green-500/10 p-4 text-center">
+              <p className="text-xs font-bold uppercase text-green-600">Trace</p>
+              <p className="text-2xl font-display font-black text-green-600">{typeof propertiesResult.Trace === 'number' ? propertiesResult.Trace.toFixed(4) : propertiesResult.Trace}</p>
+            </div>
+            <div className="rounded-2xl bg-purple-500/10 p-4 text-center">
+              <p className="text-xs font-bold uppercase text-purple-600">Rank</p>
+              <p className="text-2xl font-display font-black text-purple-600">{propertiesResult.Rank}</p>
+            </div>
+            <div className="rounded-2xl bg-orange-500/10 p-4 text-center">
+              <p className="text-xs font-bold uppercase text-orange-600">Nullity</p>
+              <p className="text-2xl font-display font-black text-orange-600">{propertiesResult.Nullity}</p>
+            </div>
+            <div className="rounded-2xl bg-pink-500/10 p-4 text-center">
+              <p className="text-xs font-bold uppercase text-pink-600">Size</p>
+              <p className="text-2xl font-display font-black text-pink-600">{propertiesResult.Size}</p>
+            </div>
+          </div>
+        )}
       </div>
     </CalculatorActions>
   );

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X, ArrowRight, Clock, Star, Lock, TrendingUp } from 'lucide-react';
+import { Search, X, ArrowRight, Clock, Star, TrendingUp } from 'lucide-react';
 import { useSearchStore, CALCULATORS } from '@/lib/store';
 
 const TRENDING = ['BMI Calculator', 'EMI Calculator', 'Compound Interest', 'SIP Calculator', 'Age Calculator'];
@@ -95,9 +95,8 @@ export function CommandPalette() {
                         }`}
                       >
                         <div>
-                          <span className="text-sm font-medium text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                             {r.title}
-                            {r.isPremium && <Lock className="w-3 h-3 text-brand-gold" />}
                           </span>
                           <span className="text-xs text-gray-600 dark:text-gray-400">{r.description}</span>
                         </div>

@@ -1,4 +1,7 @@
 'use client';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+
+import { useI18n } from '@/components/LocaleProvider';
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
@@ -6,6 +9,8 @@ import { CalculatorActions } from './CalculatorActions';
 import { useAppStore } from '@/lib/store';
 
 export function BMRCalculator() {
+  const { locale, dict } = useI18n();
+
   const [gender, setGender] = useState<'male' | 'female'>('male');
   const [age, setAge] = useState('25');
   const [weight, setWeight] = useState('70');
@@ -44,14 +49,7 @@ export function BMRCalculator() {
         <div className="grid sm:grid-cols-2 gap-4 mb-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Gender</label>
-            <div className="flex gap-2">
-              {(['male', 'female'] as const).map((g) => (
-                <button key={g} onClick={() => setGender(g)}
-                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition ${gender === g ? 'bg-brand-sapphire text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'}`}>
-                  {g.charAt(0).toUpperCase() + g.slice(1)}
-                </button>
-              ))}
-            </div>
+            <SegmentedControl label="Gender" value={gender} onChange={(v) => setGender(v as any)} options={[{value:'male',label:'Male'},{value:'female',label:'Female'}]} />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Age</label>
@@ -66,7 +64,12 @@ export function BMRCalculator() {
             <input type="number" value={height} onChange={(e) => setHeight(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-sapphire/50" />
           </div>
         </div>
-        <button onClick={calculate} className="btn-primary w-full text-center">Calculate BMR</button>
+        <motion.button
+          onClick={calculate}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          className="btn-primary w-full text-center"
+        >Calculate BMR</motion.button>
 
         {result && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-8">

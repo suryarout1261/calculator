@@ -1,0 +1,144 @@
+  'probability-calculator': {
+    id: 'probability', title: 'Probability Calculator', defaults: { mode: 'theoretical', favorable: '3', total: '10', occurrences: '25', trials: '100', pa: '0.4', pb: '0.3', pab: '0.12', pba: '0.3', pbb: '0.5', independent: 'true', mutuallyExclusive: 'false' },
+    fields: [
+      { key: 'mode', label: 'Probability Type', type: 'select', options: [
+        { label: 'Theoretical', value: 'theoretical' },
+        { label: 'Empirical', value: 'empirical' },
+        { label: 'Conditional', value: 'conditional' },
+        { label: 'Joint', value: 'joint' },
+        { label: 'Bayes', value: 'bayes' },
+        { label: 'Complement', value: 'complement' },
+        { label: 'Addition', value: 'addition' },
+      ]},
+    ],
+    formula: (v) => {
+      const mode = v.mode || 'theoretical';
+      const errors: string[] = [];
+      const validateProb = (key: string, name: string) => {
+        const val = toNum(v, key);
+        if (val < 0 || val > 1) errors.push(`${name} must be between 0 and 1`);
+        return val;
+      };
+      const validateCount = (key: string, name: string) => {
+        const val = toNum(v, key);
+        if (val < 0) errors.push(`${name} cannot be negative`);
+        return val;
+      };
+      if (errors.length > 0) throw new Error(errors.join('; '));
+
+      const fmt = (n: number) => round(n, 4);
+      const pct = (n: number) => `${round(n * 100, 2)}%`;
+      const dec = (n: number) => n.toFixed(4);
+
+      if (mode === 'theoretical') {
+        const favorable = validateCount('favorable', 'Favorable Outcomes');
+        const total = validateCount('total', 'Total Outcomes');
+        if (total === 0) throw new Error('Total outcomes cannot be zero');
+        if (favorable > total) throw new Error('Favorable outcomes cannot exceed total outcomes');
+        const p = favorable / total;
+        return {
+          Probability: fmt(p),
+          Decimal: dec(p),
+          Percentage: pct(p),
+          Formula: 'P(E) = Favorable / Total',
+          Calculation: `${favorable} / ${total} = ${fmt(p)}`,
+        };
+      }
+
+      if (mode === 'empirical') {
+        const occ = validateCount('occurrences', 'Event Occurrences');
+        const trials = validateCount('trials', 'Total Trials');
+        if (trials === 0) throw new Error('Total trials cannot be zero');
+        if (occ > trials) throw new Error('Occurrences cannot exceed trials');
+        const p = occ / trials;
+        return {
+          Probability: fmt(p),
+          Decimal: dec(p),
+          Percentage: pct(p),
+          Formula: 'P(E) = Occurrences / Trials',
+          Calculation: `${occ} / ${trials} = ${fmt(p)}`,
+        };
+      }
+
+      if (mode === 'conditional') {
+        const pab = validateProb('pab', 'P(A ∩ B)');
+        const pb = validateProb('pb', 'P(B)');
+        if (pb === 0) throw new Error('P(B) cannot be zero (division by zero)');
+        const p = pab / pb;
+        return {
+          Probability: fmt(p),
+          Decimal: dec(p),
+          Percentage: pct(p),
+          Formula: 'P(A|B) = P(A ∩ B) / P(B)',
+          Calculation: `${fmt(pab)} / ${fmt(pb)} = ${fmt(p)}`,
+        };
+      }
+
+      if (mode === 'joint') {
+        const pa = validateProb('pa', 'P(A)');
+        const pb = validateProb('pb', 'P(B)');
+        const independent = v.independent === 'true';
+        const p = independent ? pa * pb : pa * toNum(v, 'pba', pb); // dependent uses P(B|A) if given, else approximate
+        const formula = independent ? 'P(A∩B) = P(A) × P(B)' : 'P(A∩B) = P(A) × P(B|A)';
+        const calc = independent ? `${fmt(pa)} × ${fmt(pb)} = ${fmt(p)}` : `${fmt(pa)} × ${fmt(toNum(v, 'pba', pb))} = ${fmt(p)}`;
+        return {
+          Probability: fmt(p),
+          Decimal: dec(p),
+          Percentage: pct(p),
+          Formula: formula,
+          Calculation: calc,
+          Note: independent ? 'Independent events' : 'Dependent events',
+        };
+      }
+
+      if (mode === 'bayes') {
+        const pba = validateProb('pba', 'P(B|A)');
+        const pa = validateProb('pa', 'P(A)');
+        const pb = validateProb('pb', 'P(B)');
+        if (pb === 0) throw new Error('P(B) cannot be zero');
+        const p = (pba * pa) / pb;
+        return {
+          Probability: fmt(p),
+          Decimal: dec(p),
+          Percentage: pct(p),
+          Formula: "P(A|B) = [P(B|A) × P(A)] / P(B)",
+          Calculation: `[${fmt(pba)} × ${fmt(pa)}] / ${fmt(pb)} = ${fmt(p)}`,
+        };
+      }
+
+      if (mode === 'complement') {
+        const pa = validateProb('pa', 'P(A)');
+        const p = 1 - pa;
+        return {
+          Probability: fmt(p),
+          Decimal: dec(p),
+          Percentage: pct(p),
+          Formula: "P(A') = 1 - P(A)",
+          Calculation: `1 - ${fmt(pa)} = ${fmt(p)}`,
+        };
+      }
+
+      if (mode === 'addition') {
+        const pa = validateProb('pa', 'P(A)');
+        const pb = validateProb('pb', 'P(B)');
+        const pab = validateProb('pab', 'P(A ∩ B)');
+        const exclusive = v.mutuallyExclusive === 'true';
+        const p = exclusive ? pa + pb : pa + pb - pab;
+        if (!exclusive && p > 1) errors.push('Result exceeds 1 — check inputs');
+        if (errors.length > 0) throw new Error(errors.join('; '));
+        const formula = exclusive ? 'P(A∪B) = P(A) + P(B)' : 'P(A∪B) = P(A) + P(B) - P(A∩B)';
+        const calc = exclusive ? `${fmt(pa)} + ${fmt(pb)} = ${fmt(p)}` : `${fmt(pa)} + ${fmt(pb)} - ${fmt(pab)} = ${fmt(p)}`;
+        return {
+          Probability: fmt(p),
+          Decimal: dec(p),
+          Percentage: pct(p),
+          Formula: formula,
+          Calculation: calc,
+          Note: exclusive ? 'Mutually exclusive' : 'Not mutually exclusive',
+        };
+      }
+
+      return { Probability: '—', Formula: 'Select a mode' };
+    },
+    insight: () => 'Select a probability type to compute using the correct formula with step-by-step results.',
+  },

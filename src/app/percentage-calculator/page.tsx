@@ -5,7 +5,7 @@ import { PercentageCalculator } from '@/components/calculators/PercentageCalcula
 
 export const metadata: Metadata = {
   title: 'Percentage Calculator — Calculate Percentages Instantly',
-  description: 'Free percentage calculator. Find percentage of a number, percentage change, percentage difference, and more.',
+  description: 'Free online percentage calculator. Calculate percentage of a number, percentage increase, percentage decrease, percentage change, and percentage difference instantly. Best percentage calculator tool.',
 };
 
 export default function PercentagePage() {
@@ -18,7 +18,7 @@ export default function PercentagePage() {
             <a href="/" className="hover:text-brand-sapphire">Home</a> / <a href="/calculators/math" className="hover:text-brand-sapphire">Math</a> / <span className="text-brand-black dark:text-white">Percentage Calculator</span>
           </nav>
           <h1 className="font-display text-4xl font-bold mb-3">Percentage Calculator</h1>
-          <p className="text-gray-600 dark:text-gray-400 mb-8">Quickly calculate percentages with multiple calculation modes.</p>
+          <p className="text-gray-600 dark:text-gray-400 mb-8">Use our free online percentage calculator to find percentages, percentage change, percentage increase, percentage decrease, and percentage difference with multiple modes. Fast, accurate, mobile-friendly calculator tool.</p>
           <PercentageCalculator />
         </div>
       </main>

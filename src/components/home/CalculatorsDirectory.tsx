@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Search, Sparkles, Heart, Lock, TrendingUp, ArrowRight, Filter } from 'lucide-react';
+import { Search, Sparkles, Heart, TrendingUp, ArrowRight } from 'lucide-react';
 import { CALCULATORS, CATEGORIES, useAppStore, useSearchStore } from '@/lib/store';
 
 const trending = ['emi', 'bmi', 'sip', 'compound-interest', 'percentage', 'calorie', 'tdee', 'age'];
@@ -11,20 +11,18 @@ const trending = ['emi', 'bmi', 'sip', 'compound-interest', 'percentage', 'calor
 export function CalculatorsDirectory() {
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
-  const [showPremiumOnly, setShowPremiumOnly] = useState(false);
   const { favorites, toggleFavorite } = useAppStore();
   const { openSearch } = useSearchStore();
 
   const filtered = useMemo(() => {
     let list = CALCULATORS;
     if (activeCategory !== 'all') list = list.filter((c) => c.category === activeCategory);
-    if (showPremiumOnly) list = list.filter((c) => c.isPremium);
     if (search) {
       const q = search.toLowerCase();
       list = list.filter((c) => c.title.toLowerCase().includes(q) || c.tags.some((t) => t.includes(q)) || c.description.toLowerCase().includes(q));
     }
     return list;
-  }, [search, activeCategory, showPremiumOnly]);
+  }, [search, activeCategory]);
 
   const trendingCalcs = CALCULATORS.filter((c) => trending.includes(c.id));
   const favoriteCalcs = CALCULATORS.filter((c) => favorites.includes(c.id));
@@ -71,10 +69,6 @@ export function CalculatorsDirectory() {
             {cat.label} ({cat.count})
           </button>
         ))}
-        <button onClick={() => setShowPremiumOnly(!showPremiumOnly)}
-          className={`ml-auto px-4 py-2 rounded-lg text-xs font-medium transition-all flex items-center gap-1 ${showPremiumOnly ? 'bg-brand-gold text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'}`}>
-          <Lock className="w-3 h-3" /> Premium Only
-        </button>
       </div>
 
       {/* Trending Section */}
@@ -123,11 +117,6 @@ export function CalculatorsDirectory() {
           <motion.div key={calc.id} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i * 0.02, 0.5) }}>
             <Link href={calc.href}
               className="glass-card p-5 block group hover:shadow-xl hover:scale-[1.02] transition-all duration-300 relative h-full">
-              {calc.isPremium && (
-                <span className="absolute top-3 right-3 flex items-center gap-1 text-[9px] font-bold text-brand-gold bg-brand-gold/10 px-2 py-0.5 rounded-full">
-                  <Lock className="w-2.5 h-2.5" /> PRO
-                </span>
-              )}
               <div className="flex items-start justify-between">
                 <div className="flex-1 pr-6">
                   <h3 className="font-semibold text-sm text-gray-900 dark:text-white group-hover:text-brand-sapphire transition-colors">{calc.title}</h3>

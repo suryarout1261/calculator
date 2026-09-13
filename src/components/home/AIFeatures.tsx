@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { Brain, Sparkles, TrendingUp, Dumbbell, BookOpen } from 'lucide-react';
+import { useI18n } from '@/components/LocaleProvider';
 
 const features = [
   { icon: Brain, title: 'AI Equation Solving', desc: 'Type any equation and get step-by-step solutions powered by AI.' },
@@ -12,18 +13,20 @@ const features = [
 ];
 
 export function AIFeatures() {
+  const { dict } = useI18n();
+
   return (
     <section className="py-24 bg-gradient-to-br from-brand-indigo to-brand-black text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-brand-gold/20 text-brand-gold text-sm font-medium mb-4">
-            <Sparkles className="w-4 h-4" /> Powered by AI
+            <Sparkles className="w-4 h-4" /> {dict.ai.badge}
           </div>
           <h2 className="font-display text-3xl sm:text-4xl font-bold mb-4">
-            Smart Calculations. Intelligent Insights.
+            {dict.ai.title}
           </h2>
           <p className="text-gray-300 max-w-2xl mx-auto">
-            Beyond basic math — our AI engine explains, recommends, and teaches.
+            {dict.ai.subtitle}
           </p>
         </div>
 

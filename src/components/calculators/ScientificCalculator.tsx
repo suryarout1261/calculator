@@ -1,5 +1,7 @@
 'use client';
 
+import { useI18n } from '@/components/LocaleProvider';
+
 import { useState } from 'react';
 
 const buttons = [
@@ -13,6 +15,8 @@ const buttons = [
 ];
 
 export function ScientificCalculator() {
+  const { locale, dict } = useI18n();
+
   const [display, setDisplay] = useState('0');
   const [expression, setExpression] = useState('');
   const [lastAnswer, setLastAnswer] = useState(0);
@@ -70,8 +74,8 @@ export function ScientificCalculator() {
             className={`p-3 rounded-xl text-sm font-semibold transition-all active:scale-95 ${
               btn === '=' ? 'bg-brand-sapphire text-white' :
               btn === 'AC' || btn === 'C' ? 'bg-red-500/10 text-red-500' :
-              /^[0-9.]$/.test(btn) ? 'bg-gray-100 hover:bg-gray-200' :
-              'bg-brand-gold/10 text-brand-gold hover:bg-brand-gold/20'
+              /^[0-9.]$/.test(btn) ? 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white' :
+              'bg-brand-gold/10 text-brand-gold dark:text-amber-300 hover:bg-brand-gold/20 dark:hover:bg-brand-gold/30'
             }`}
           >
             {btn}

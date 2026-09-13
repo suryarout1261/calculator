@@ -1,9 +1,13 @@
 'use client';
 
+import { useI18n } from '@/components/LocaleProvider';
+
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 
 export function SIPCalculator() {
+  const { locale, dict } = useI18n();
+
   const [monthly, setMonthly] = useState('10000');
   const [rate, setRate] = useState('12');
   const [years, setYears] = useState('10');
@@ -42,7 +46,12 @@ export function SIPCalculator() {
         </div>
       </div>
 
-      <button onClick={calculate} className="btn-primary w-full text-center">Calculate Returns</button>
+      <motion.button
+        onClick={calculate}
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
+        className="btn-primary w-full text-center"
+      >Calculate Returns</motion.button>
 
       {result && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-8 grid sm:grid-cols-3 gap-4">

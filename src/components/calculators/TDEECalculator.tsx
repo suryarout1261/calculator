@@ -1,11 +1,16 @@
 'use client';
 
+import { useI18n } from '@/components/LocaleProvider';
+
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { CalculatorActions } from './CalculatorActions';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { useAppStore } from '@/lib/store';
 
 export function TDEECalculator() {
+  const { locale, dict } = useI18n();
+
   const [gender, setGender] = useState<'male' | 'female'>('male');
   const [age, setAge] = useState('25');
   const [weight, setWeight] = useState('70');
@@ -39,17 +44,15 @@ export function TDEECalculator() {
           <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Weight (kg)</label><input type="number" value={weight} onChange={(e) => setWeight(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-sapphire/50" /></div>
           <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Height (cm)</label><input type="number" value={height} onChange={(e) => setHeight(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-sapphire/50" /></div>
           <div className="sm:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Activity Level</label>
-            <select value={activity} onChange={(e) => setActivity(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-sapphire/50">
-              <option value="1.2">Sedentary</option>
-              <option value="1.375">Lightly Active</option>
-              <option value="1.55">Moderately Active</option>
-              <option value="1.725">Very Active</option>
-              <option value="1.9">Extra Active</option>
-            </select>
+            <SegmentedControl label="Activity Level" value={activity} onChange={(v) => setActivity(v)} options={[{value:'1.2',label:'Sedentary'},{value:'1.375',label:'Light'},{value:'1.55',label:'Mod'},{value:'1.725',label:'Active'},{value:'1.9',label:'Extra'}]} />
           </div>
         </div>
-        <button onClick={calculate} className="btn-primary w-full text-center">Calculate TDEE</button>
+        <motion.button
+          onClick={calculate}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          className="btn-primary w-full text-center"
+        >Calculate TDEE</motion.button>
 
         {result && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-8 grid sm:grid-cols-3 gap-4">

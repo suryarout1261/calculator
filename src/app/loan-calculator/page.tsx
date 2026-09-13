@@ -4,8 +4,8 @@ import { Footer } from '@/components/layout/Footer';
 import { LoanCalculator } from '@/components/calculators/LoanCalculator';
 
 export const metadata: Metadata = {
-  title: 'Loan Calculator — Calculate Loan Payments & Interest',
-  description: 'Free loan calculator to compute monthly payments, total interest, and amortization for any loan type.',
+  title: 'Loan Calculator — Free Online Loan EMI Calculator',
+  description: 'Free loan calculator to compute monthly payments, total interest, and amortization. Use our online loan calculator for accurate EMI and repayment planning.',
 };
 
 export default function LoanPage() {

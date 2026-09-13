@@ -4,8 +4,8 @@ import { Footer } from '@/components/layout/Footer';
 import { ScientificCalculator } from '@/components/calculators/ScientificCalculator';
 
 export const metadata: Metadata = {
-  title: 'Scientific Calculator — Advanced Online Calculator',
-  description: 'Free online scientific calculator with trigonometry, logarithms, exponents, roots, and more. Full-featured calculator for students and professionals.',
+  title: 'Scientific Calculator — Free Online Scientific Calculator',
+  description: 'Free online scientific calculator with trigonometry, logarithms, exponents, roots, and more. Full-featured math calculator for students and professionals.',
 };
 
 export default function ScientificPage() {
@@ -18,7 +18,7 @@ export default function ScientificPage() {
             <a href="/" className="hover:text-brand-sapphire">Home</a> / <a href="/calculators/math" className="hover:text-brand-sapphire">Math</a> / <span className="text-brand-black dark:text-white">Scientific Calculator</span>
           </nav>
           <h1 className="font-display text-4xl font-bold mb-3">Scientific Calculator</h1>
-          <p className="text-gray-600 dark:text-gray-400 mb-8">A powerful scientific calculator with advanced functions.</p>
+          <p className="text-gray-600 dark:text-gray-400 mb-8">Free scientific calculator online for trigonometry, logarithms, exponents, and roots. A powerful calculus-ready math calculator tool for students and professionals.</p>
           <ScientificCalculator />
         </div>
       </main>

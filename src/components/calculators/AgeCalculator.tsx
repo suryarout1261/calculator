@@ -1,9 +1,13 @@
 'use client';
 
+import { useI18n } from '@/components/LocaleProvider';
+
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 
 export function AgeCalculator() {
+  const { locale, dict } = useI18n();
+
   const [dob, setDob] = useState('');
   const [result, setResult] = useState<{ years: number; months: number; days: number; totalDays: number } | null>(null);
 
@@ -36,7 +40,12 @@ export function AgeCalculator() {
         <input type="date" value={dob} onChange={(e) => setDob(e.target.value)}
           className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 focus:outline-none focus:ring-2 focus:ring-brand-sapphire/50" />
       </div>
-      <button onClick={calculate} className="btn-primary w-full text-center">Calculate Age</button>
+      <motion.button
+        onClick={calculate}
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
+        className="btn-primary w-full text-center"
+      >Calculate Age</motion.button>
 
       {result && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-4">

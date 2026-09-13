@@ -1,0 +1,98 @@
+  'geometry-calculator': {
+    id: 'geometry', title: 'Geometry Calculator',
+    defaults: { shape: 'circle', radius: '5', side: '5', length: '6', width: '4', base: '5', height: '4', sideA: '3', sideB: '4', sideC: '5', base1: '6', base2: '4', side1: '3', side2: '5', slant: '5', a: '', b: '', c: '' },
+    fields: (v) => {
+      const s = (v && v.shape) ? v.shape : 'circle';
+      const baseFields = [{ key: 'shape', label: 'Shape', type: 'select', options: [
+        { label: 'Rectangle', value: 'rectangle' },
+        { label: 'Square', value: 'square' },
+        { label: 'Triangle', value: 'triangle' },
+        { label: 'Circle', value: 'circle' },
+        { label: 'Semicircle', value: 'semicircle' },
+        { label: 'Parallelogram', value: 'parallelogram' },
+        { label: 'Trapezoid', value: 'trapezoid' },
+        { label: 'Cube', value: 'cube' },
+        { label: 'Rectangular Prism / Cuboid', value: 'rectangular-prism' },
+        { label: 'Cylinder', value: 'cylinder' },
+        { label: 'Sphere', value: 'sphere' },
+        { label: 'Cone', value: 'cone' },
+      ]}];
+      const shapeFields = {
+        rectangle: [{ key: 'length', label: 'Length' }, { key: 'width', label: 'Width' }],
+        square: [{ key: 'side', label: 'Side' }],
+        triangle: [{ key: 'sideA', label: 'Side A' }, { key: 'sideB', label: 'Side B' }, { key: 'sideC', label: 'Side C' }],
+        circle: [{ key: 'radius', label: 'Radius' }],
+        semicircle: [{ key: 'radius', label: 'Radius' }],
+        parallelogram: [{ key: 'base', label: 'Base' }, { key: 'height', label: 'Height' }, { key: 'side', label: 'Side' }],
+        trapezoid: [{ key: 'base1', label: 'Base 1' }, { key: 'base2', label: 'Base 2' }, { key: 'height', label: 'Height' }, { key: 'side1', label: 'Side 1' }, { key: 'side2', label: 'Side 2' }],
+        cube: [{ key: 'side', label: 'Side' }],
+        'rectangular-prism': [{ key: 'length', label: 'Length' }, { key: 'width', label: 'Width' }, { key: 'height', label: 'Height' }],
+        cylinder: [{ key: 'radius', label: 'Radius' }, { key: 'height', label: 'Height' }],
+        sphere: [{ key: 'radius', label: 'Radius' }],
+        cone: [{ key: 'radius', label: 'Radius' }, { key: 'height', label: 'Height' }, { key: 'slant', label: 'Slant Height' }],
+      };
+      return [...baseFields, ...(shapeFields[s] || [])];
+    },
+    formula: (v) => {
+      const s = v.shape || 'circle';
+      const pi = Math.PI;
+      const to = (k) => { const n = Number(v[k]); return isNaN(n) ? 0 : n; };
+      const r = to('radius'), len = to('length'), wid = to('width'), sid = to('side'), h = to('height'), b = to('base'), a = to('sideA'), bb = to('sideB'), c = to('sideC'), b1 = to('base1'), b2 = to('base2'), s1 = to('side1'), s2 = to('side2'), sl = to('slant');
+      switch (s) {
+        case 'rectangle': {
+          const area = len * wid; const per = 2 * (len + wid); const diag = Math.hypot(len, wid);
+          return { Area: Math.round(area*10000)/10000, Perimeter: Math.round(per*10000)/10000, Diagonal: Math.round(diag*10000)/10000 };
+        }
+        case 'square': {
+          const area = sid * sid; const per = 4 * sid; const diag = sid * Math.SQRT2;
+          return { Area: Math.round(area*10000)/10000, Perimeter: Math.round(per*10000)/10000, Diagonal: Math.round(diag*10000)/10000 };
+        }
+        case 'triangle': {
+          const aVal = a, bVal = bb, cVal = c;
+          if (aVal + bVal <= cVal || aVal + cVal <= bVal || bVal + cVal <= aVal) return { Error: 'Invalid triangle: sides violate triangle inequality' };
+          const p = (aVal + bVal + cVal) / 2;
+          const area = Math.sqrt(p * (p - aVal) * (p - bVal) * (p - cVal));
+          const per = aVal + bVal + cVal;
+          return { Perimeter: Math.round(per*10000)/10000, Area: Math.round(area*10000)/10000 };
+        }
+        case 'circle': {
+          const area = pi * r * r; const circ = 2 * pi * r; const d = 2 * r;
+          return { Area: Math.round(area*10000)/10000, Circumference: Math.round(circ*10000)/10000, Diameter: Math.round(d*10000)/10000 };
+        }
+        case 'semicircle': {
+          const area = (pi * r * r) / 2; const per = pi * r + 2 * r;
+          return { Area: Math.round(area*10000)/10000, Perimeter: Math.round(per*10000)/10000 };
+        }
+        case 'parallelogram': {
+          const area = b * h; const per = 2 * (b + sid);
+          return { Area: Math.round(area*10000)/10000, Perimeter: Math.round(per*10000)/10000 };
+        }
+        case 'trapezoid': {
+          const area = ((b1 + b2) / 2) * h; const per = b1 + b2 + s1 + s2;
+          return { Area: Math.round(area*10000)/10000, Perimeter: Math.round(per*10000)/10000 };
+        }
+        case 'cube': {
+          const sa = 6 * sid * sid; const vol = sid * sid * sid; const diag = sid * Math.sqrt(3);
+          return { 'Surface Area': Math.round(sa*10000)/10000, Volume: Math.round(vol*10000)/10000, 'Space Diagonal': Math.round(diag*10000)/10000 };
+        }
+        case 'rectangular-prism': {
+          const sa = 2 * (len * wid + wid * h + h * len); const vol = len * wid * h; const diag = Math.sqrt(len * len + wid * wid + h * h);
+          return { 'Surface Area': Math.round(sa*10000)/10000, Volume: Math.round(vol*10000)/10000, Diagonal: Math.round(diag*10000)/10000 };
+        }
+        case 'cylinder': {
+          const sa = 2 * pi * r * (r + h); const vol = pi * r * r * h;
+          return { 'Surface Area': Math.round(sa*10000)/10000, Volume: Math.round(vol*10000)/10000 };
+        }
+        case 'sphere': {
+          const sa = 4 * pi * r * r; const vol = (4 / 3) * pi * r * r * r;
+          return { 'Surface Area': Math.round(sa*10000)/10000, Volume: Math.round(vol*10000)/10000 };
+        }
+        case 'cone': {
+          const sa = pi * r * r + pi * r * sl; const vol = (1 / 3) * pi * r * r * h;
+          return { 'Surface Area': Math.round(sa*10000)/10000, Volume: Math.round(vol*10000)/10000 };
+        }
+        default: return { Note: 'Select a shape' };
+      }
+    },
+    insight: () => 'Select a shape to see the required dimensions.',
+  },

@@ -1,129 +1,217 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Check, Crown, X } from 'lucide-react';
+import { Check, Gift, Sparkles, Heart, Zap } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
-import { useAuthStore } from '@/lib/store';
-import toast from 'react-hot-toast';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
-const plans = [
-  {
-    name: 'Free',
-    price: '$0',
-    period: 'forever',
-    features: [
-      { text: '10 calculations/day', included: true },
-      { text: 'Basic calculators', included: true },
-      { text: 'Ad-supported', included: true },
-      { text: 'AI features', included: false },
-      { text: 'Export to PDF/CSV', included: false },
-      { text: 'Advanced charts', included: false },
-      { text: 'Priority support', included: false },
-    ],
-    cta: 'Current Plan',
-    popular: false,
-  },
-  {
-    name: 'Premium',
-    price: '$9',
-    period: '/month',
-    features: [
-      { text: 'Unlimited calculations', included: true },
-      { text: 'All calculators unlocked', included: true },
-      { text: 'No ads', included: true },
-      { text: 'AI-powered features', included: true },
-      { text: 'Export to PDF/CSV', included: true },
-      { text: 'Advanced charts & reports', included: true },
-      { text: 'Priority support', included: true },
-    ],
-    cta: 'Upgrade Now',
-    popular: true,
-  },
-  {
-    name: 'Enterprise',
-    price: '$49',
-    period: '/month',
-    features: [
-      { text: 'Everything in Premium', included: true },
-      { text: 'Team collaboration', included: true },
-      { text: 'Custom branding', included: true },
-      { text: 'API access', included: true },
-      { text: 'Dedicated support', included: true },
-      { text: 'Custom calculators', included: true },
-      { text: 'SLA guarantee', included: true },
-    ],
-    cta: 'Contact Sales',
-    popular: false,
-  },
+const features = [
+  { text: 'Unlimited calculations', icon: Zap },
+  { text: '120+ professional calculators', icon: Sparkles },
+  { text: 'All features unlocked', icon: Gift },
+  { text: 'No registration required', icon: Heart },
+  { text: 'Dark mode support', icon: Sparkles },
+  { text: 'Mobile optimized', icon: Zap },
+  { text: 'Export & share results', icon: Gift },
+  { text: 'Ad-supported (keeps it free!)', icon: Heart },
+];
+
+const categories = [
+  { name: 'Finance', count: 16, emoji: '💰' },
+  { name: 'Health & Fitness', count: 14, emoji: '💪' },
+  { name: 'Mathematics', count: 9, emoji: '🔢' },
+  { name: 'Science', count: 8, emoji: '🔬' },
+  { name: 'Engineering', count: 5, emoji: '⚙️' },
+  { name: 'Date & Time', count: 4, emoji: '📅' },
+  { name: 'Education', count: 4, emoji: '🎓' },
+  { name: 'Conversions', count: 7, emoji: '🔄' },
 ];
 
 export default function PricingPage() {
-  const { user, upgradeToPremium } = useAuthStore();
-  const router = useRouter();
-
-  const handleUpgrade = (plan: string) => {
-    if (!user) { router.push('/login'); return; }
-    if (plan === 'Premium') {
-      // In production, this would redirect to Stripe Checkout
-      upgradeToPremium();
-      toast.success('🎉 Upgraded to Premium! Enjoy unlimited access.');
-      router.push('/dashboard');
-    } else if (plan === 'Enterprise') {
-      toast('Enterprise plan — contact sales@shivarkaa.com');
-    }
-  };
-
   return (
     <>
       <Header />
       <main className="pt-24 pb-16">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Hero Section */}
           <div className="text-center mb-16">
-            <h1 className="font-display text-4xl sm:text-5xl font-bold mb-4">Simple, Transparent Pricing</h1>
-            <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">Choose the plan that fits your needs. Upgrade anytime.</p>
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+              className="inline-block mb-6"
+            >
+              <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-br from-green-400 via-emerald-500 to-teal-500 flex items-center justify-center shadow-2xl">
+                <Gift className="w-12 h-12 text-white" />
+              </div>
+            </motion.div>
+
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="font-display text-5xl sm:text-6xl font-bold mb-4 gradient-text"
+            >
+              100% Free Forever
+            </motion.h1>
+
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="text-xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto mb-6"
+            >
+              All 120+ professional calculators. All features. Completely free.
+            </motion.p>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 font-medium"
+            >
+              <Heart className="w-5 h-5" />
+              No sign-in, no premium, no hassle — all handled by ads 🎉
+            </motion.div>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6">
-            {plans.map((plan, i) => (
-              <motion.div key={plan.name} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}
-                className={`rounded-2xl p-8 border ${plan.popular ? 'border-brand-gold bg-brand-gold/5 dark:bg-brand-gold/10 shadow-xl relative' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900'}`}>
-                {plan.popular && (
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-brand-gold text-white text-xs font-bold rounded-full flex items-center gap-1">
-                    <Crown className="w-3 h-3" /> MOST POPULAR
-                  </span>
-                )}
-                <h3 className="font-display font-bold text-xl mb-2">{plan.name}</h3>
-                <div className="flex items-baseline gap-1 mb-6">
-                  <span className="font-display text-4xl font-bold">{plan.price}</span>
-                  <span className="text-sm text-gray-500">{plan.period}</span>
+          {/* Main Free Plan Card */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.5 }}
+            className="max-w-2xl mx-auto mb-16"
+          >
+            <div className="relative overflow-hidden rounded-3xl p-10 bg-gradient-to-br from-brand-sapphire via-blue-600 to-brand-indigo shadow-2xl">
+              {/* Animated Background Elements */}
+              <motion.div
+                className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl"
+                animate={{
+                  scale: [1, 1.2, 1],
+                  opacity: [0.3, 0.5, 0.3],
+                }}
+                transition={{
+                  duration: 4,
+                  repeat: Infinity,
+                  ease: 'easeInOut',
+                }}
+              />
+
+              <div className="relative z-10">
+                <h2 className="font-display text-3xl font-bold text-white mb-2">
+                  Everything You Need
+                </h2>
+                <div className="flex items-baseline gap-2 mb-8">
+                  <span className="font-display text-6xl font-bold text-white">$0</span>
+                  <span className="text-2xl text-white/80">forever</span>
                 </div>
-                <ul className="space-y-3 mb-8">
-                  {plan.features.map((f) => (
-                    <li key={f.text} className="flex items-center gap-2 text-sm">
-                      {f.included ? <Check className="w-4 h-4 text-green-500" /> : <X className="w-4 h-4 text-gray-300" />}
-                      <span className={f.included ? '' : 'text-gray-400'}>{f.text}</span>
-                    </li>
-                  ))}
-                </ul>
-                <button
-                  onClick={() => handleUpgrade(plan.name)}
-                  disabled={plan.name === 'Free' || (user?.isPremium && plan.name === 'Premium')}
-                  className={`w-full py-3 rounded-xl font-medium text-sm transition-all ${
-                    plan.popular ? 'bg-brand-gold text-white hover:bg-brand-gold/90 shadow-lg' :
-                    'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'
-                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+
+                <div className="grid sm:grid-cols-2 gap-3 mb-8">
+                  {features.map((feature, i) => {
+                    const Icon = feature.icon;
+                    return (
+                      <motion.div
+                        key={feature.text}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.6 + i * 0.05 }}
+                        className="flex items-center gap-3 text-white"
+                      >
+                        <div className="shrink-0 w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
+                          <Icon className="w-4 h-4" />
+                        </div>
+                        <span className="text-sm font-medium">{feature.text}</span>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+
+                <Link href="/calculators" className="block w-full">
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="w-full py-4 px-6 rounded-xl bg-white text-brand-sapphire font-bold text-lg shadow-xl hover:shadow-2xl transition-all"
+                  >
+                    Start Calculating Now →
+                  </motion.button>
+                </Link>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Categories Grid */}
+          <div className="mb-16">
+            <h2 className="font-display text-3xl font-bold text-center mb-8">
+              All Categories Included
+            </h2>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {categories.map((cat, i) => (
+                <motion.div
+                  key={cat.name}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.7 + i * 0.05 }}
+                  className="glass-card p-6 text-center hover:shadow-xl transition-all duration-300"
                 >
-                  {user?.isPremium && plan.name === 'Premium' ? '✓ Active' : plan.cta}
-                </button>
-              </motion.div>
-            ))}
+                  <div className="text-4xl mb-3">{cat.emoji}</div>
+                  <h3 className="font-semibold text-gray-900 dark:text-white mb-1">
+                    {cat.name}
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {cat.count}+ calculators
+                  </p>
+                </motion.div>
+              ))}
+            </div>
           </div>
+
+          {/* FAQ Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1 }}
+            className="max-w-3xl mx-auto"
+          >
+            <h2 className="font-display text-3xl font-bold text-center mb-8">
+              Frequently Asked Questions
+            </h2>
+            <div className="space-y-4">
+              {[
+                {
+                  q: 'Is it really 100% free?',
+                  a: 'Yes! Every single calculator and feature is completely free. We show ads to cover our costs and keep the service free for everyone.',
+                },
+                {
+                  q: 'Do I need to create an account?',
+                  a: 'No account required! Just visit any calculator and start using it immediately. All features are accessible without sign-in.',
+                },
+                {
+                  q: 'Are there any hidden fees or limitations?',
+                  a: 'Absolutely none. All 120+ calculators are completely unlimited. No hidden fees, no feature locks.',
+                },
+                {
+                  q: 'How do you make money?',
+                  a: 'We display non-intrusive ads on calculator pages. This keeps the service free while covering our hosting and development costs.',
+                },
+              ].map((faq, i) => (
+                <div
+                  key={i}
+                  className="glass-card p-6"
+                >
+                  <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
+                    {faq.q}
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {faq.a}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </motion.div>
         </div>
       </main>
       <Footer />
     </>
   );
 }
-

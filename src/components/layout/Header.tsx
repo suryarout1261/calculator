@@ -1,40 +1,44 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import Image from 'next/image';
+import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
-import { Menu, X, Calculator, Search, Moon, Sun, User, LogOut, Crown, Settings } from 'lucide-react';
-import { useSearchStore, useAuthStore } from '@/lib/store';
+import { Menu, X, Search, Moon, Sun } from 'lucide-react';
+import { useSearchStore } from '@/lib/store';
 import { CommandPalette } from '@/components/CommandPalette';
-
-const navLinks = [
-	{ label: 'Finance', href: '/category/finance' },
-	{ label: 'Health', href: '/category/health' },
-	{ label: 'Math', href: '/category/math' },
-	{ label: 'Science', href: '/category/science' },
-	{ label: 'Engineering', href: '/category/engineering' },
-	{ label: 'Converters', href: '/category/conversion' },
-	{ label: 'AI Tools', href: '/category/ai' },
-];
+import { useLocaleStore } from '@/lib/store';
+import { useI18n } from '@/components/LocaleProvider';
+import { LOCALES, LOCALE_META, getDictionary } from '@/lib/i18n';
 
 export function Header() {
 	const [open, setOpen] = useState(false);
-	const [userMenu, setUserMenu] = useState(false);
+	const [langOpen, setLangOpen] = useState(false);
+	useEffect(() => { if (!langOpen) return; const h = (e: MouseEvent) => { const el = document.querySelector('[data-lang-dropdown]'); if (el && !el.contains(e.target as Node)) setLangOpen(false); }; document.addEventListener('click', h); return () => document.removeEventListener('click', h); }, [langOpen]);
 	const { theme, setTheme } = useTheme();
 	const openSearch = useSearchStore((s) => s.openSearch);
-	const user = useAuthStore((s) => s.user);
-	const logout = useAuthStore((s) => s.logout);
+	const { locale, dict } = useI18n();
+
+	const navLinks = [
+		{ label: dict.nav.finance, href: '/category/finance' },
+		{ label: dict.nav.health, href: '/category/health' },
+		{ label: dict.nav.math, href: '/category/math' },
+		{ label: dict.nav.science, href: '/category/science' },
+		{ label: dict.nav.engineering, href: '/category/engineering' },
+		{ label: dict.nav.converters, href: '/category/conversion' },
+		{ label: dict.nav.all, href: '/calculators' },
+	];
 
 	return (
 		<>
 			<CommandPalette />
 			<header className="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-700/50">
 				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-					<div className="flex items-center justify-between h-16">
+					<div className="flex items-center justify-between h-14 sm:h-16">
 						<Link href="/" className="flex items-center gap-2">
-							<Calculator className="w-7 h-7 text-brand-gold" />
-							<span className="font-display font-bold text-lg tracking-tight">
-								SHIVARKAA<span className="text-brand-gold ml-1">CALCULATE</span>
+							<Image src="/favicon.svg" alt="Real Calculator 365 logo" width={32} height={32} priority className="w-8 h-8" />
+							<span className="font-display font-bold text-base sm:text-lg tracking-tight hidden sm:inline">
+								Real Calculator <span className="text-brand-gold">365</span>
 							</span>
 						</Link>
 
@@ -50,14 +54,45 @@ export function Header() {
 							))}
 						</nav>
 
-						<div className="flex items-center gap-2">
-							{/* Search */}
+						<div className="flex items-center gap-1 sm:gap-2">
+							{/* Language dropdown — works on mobile + desktop */}
+							<div data-lang-dropdown className="relative group" tabIndex={0}>
+								<button
+									onClick={() => setLangOpen(!langOpen)}
+									className="flex items-center gap-1 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg bg-gray-100 dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition focus:outline-none"
+									aria-label="Select language" aria-expanded="false"
+								>
+									{LOCALE_META[locale].label}
+									<svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"/></svg>
+								</button>
+								<div className={`absolute right-0 top-full mt-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl py-1 min-w-[140px] sm:min-w-[160px] z-50 ${langOpen ? "block" : "hidden"}`}>
+									{LOCALES.map((code) => {
+										const isActive = locale === code;
+										const label = LOCALE_META[code].label;
+										return (
+											<button
+												key={code}
+												onClick={() => {
+													useLocaleStore.getState().setLocale(code);
+													window.dispatchEvent(new Event('language-changed'));
+									setLangOpen(false);
+												}}
+												className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${isActive ? 'text-brand-gold font-semibold' : 'text-gray-700 dark:text-gray-200'}`}
+											>
+												{label}
+											</button>
+										);
+									})}
+								</div>
+							</div>
+
+						{/* Search */}
 							<button
 								onClick={openSearch}
 								className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition text-sm text-gray-500"
 							>
 								<Search className="w-4 h-4" />
-								<span className="hidden sm:inline">Search</span>
+								<span className="hidden sm:inline">{dict.nav.search}</span>
 								<kbd className="hidden sm:inline ml-2 px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-700 text-[10px] font-mono">
 									⌘K
 								</kbd>
@@ -72,79 +107,6 @@ export function Header() {
 								<Sun className="w-4 h-4 hidden dark:block text-brand-gold" />
 								<Moon className="w-4 h-4 dark:hidden text-brand-indigo" />
 							</button>
-
-							{/* Auth */}
-							{user ? (
-								<div className="relative">
-									<button
-										onClick={() => setUserMenu(!userMenu)}
-										className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition"
-									>
-										<div className="w-7 h-7 rounded-full bg-brand-sapphire flex items-center justify-center text-white text-xs font-bold">
-											{user.name[0].toUpperCase()}
-										</div>
-										{user.isPremium && (
-											<Crown className="w-3.5 h-3.5 text-brand-gold" />
-										)}
-									</button>
-									{userMenu && (
-										<div className="absolute right-0 top-12 w-56 bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 py-2 z-50">
-											<div className="px-4 py-2 border-b border-gray-100 dark:border-gray-800">
-												<p className="text-sm font-medium truncate">{user.name}</p>
-												<p className="text-xs text-gray-500 truncate">
-													{user.email}
-												</p>
-												{user.isPremium && (
-													<span className="inline-flex items-center gap-1 mt-1 text-[10px] font-bold text-brand-gold">
-														<Crown className="w-3 h-3" />
-														PREMIUM
-													</span>
-												)}
-											</div>
-											<Link
-												href="/dashboard"
-												onClick={() => setUserMenu(false)}
-												className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800"
-											>
-												<User className="w-4 h-4" />
-												Dashboard
-											</Link>
-											<Link
-												href="/settings"
-												onClick={() => setUserMenu(false)}
-												className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800"
-											>
-												<Settings className="w-4 h-4" />
-												Account Settings
-											</Link>
-											{!user.isPremium && (
-												<Link
-													href="/pricing"
-													onClick={() => setUserMenu(false)}
-													className="flex items-center gap-2 px-4 py-2 text-sm text-brand-gold hover:bg-gray-50 dark:hover:bg-gray-800"
-												>
-													<Crown className="w-4 h-4" />
-													Upgrade to Premium
-												</Link>
-											)}
-											<button
-												onClick={() => {
-													logout();
-													setUserMenu(false);
-												}}
-												className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-500 hover:bg-gray-50 dark:hover:bg-gray-800"
-											>
-												<LogOut className="w-4 h-4" />
-												Logout
-											</button>
-										</div>
-									)}
-								</div>
-							) : (
-								<Link href="/login" className="btn-primary py-2 px-4 text-xs">
-									Sign In
-								</Link>
-							)}
 
 							{/* Mobile menu */}
 							<button
@@ -176,5 +138,3 @@ export function Header() {
 		</>
 	);
 }
-
-
