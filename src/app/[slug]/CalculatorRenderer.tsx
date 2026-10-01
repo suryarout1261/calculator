@@ -17,7 +17,7 @@ const UniversalCalculator = dynamic(() => import('@/components/calculators/Unive
 const CGPACalculator = dynamic(() => import('@/components/calculators/CGPACalculator').then(m => ({ default: m.CGPACalculator })));
 const GeometryCalculator = dynamic(() => import('@/components/calculators/GeometryCalculator').then(m => ({ default: m.GeometryCalculator })));
 
-const calculatorMap: Record<string, React.ComponentType> = {
+const calculatorMap: Record<string, React.ComponentType<{ slug?: string }>> = {
   'mortgage-calculator': MortgageCalculator,
   'roi-calculator': ROICalculator,
   'gst-calculator': GSTCalculator,
@@ -43,7 +43,7 @@ export function CalculatorRenderer({ slug }: { slug: string }) {
     return <UniversalCalculator slug={slug} />;
   }
 
-  return <Component />;
+  return <Component slug={slug} />;
 }
 
 

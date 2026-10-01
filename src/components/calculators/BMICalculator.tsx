@@ -78,7 +78,7 @@ export function BMICalculator() {
             Body Mass Index — Live
           </h2>
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            {locale === 'es' ? 'Arrastra los controles y observa tu IMC al instante.' : locale === 'ja' ? 'スライダーを動かすとBMIが更新されます。' : locale === 'fr' ? 'Déplacez les curseurs et observez votre IMC.' : locale === 'de' ? 'Ziehe die Regler und beobachte dein BMI.' : locale === 'pt' ? 'Arraste os controles e veja seu IMC.' : locale === 'ko' ? '슬라이더를 움직이면 BMI가 업데이트됩니다.' : locale === 'it' ? 'Sposta i cursori e guarda il BMI.' : 'Drag sliders to see your BMI update instantly.'}
+            {locale === 'es' ? 'Ajusta el control deslizante o escribe tus valores exactos.' : locale === 'ja' ? 'スライダーを動かすか、数値を直接入力してください。' : locale === 'fr' ? 'Déplacez le curseur ou saisissez vos valeurs exactes.' : locale === 'de' ? 'Bewege den Schieberegler oder tippe den genauen Wert ein.' : locale === 'pt' ? 'Arraste o controle ou digite seus valores exatos.' : locale === 'ko' ? '슬라이더를 움직이거나 정확한 값을 직접 입력하세요.' : locale === 'it' ? 'Sposta il cursore o digita i valori esatti.' : 'Drag the slider or type your exact values into the input box to see your BMI update instantly.'}
           </p>
         </div>
 
@@ -87,10 +87,22 @@ export function BMICalculator() {
           <SegmentedControl
             label={locale === 'es' ? 'Unidades' : locale === 'ja' ? '単位' : locale === 'fr' ? 'Unités' : locale === 'de' ? 'Einheiten' : locale === 'pt' ? 'Unidades' : locale === 'ko' ? '단위' : locale === 'it' ? 'Unità' : 'Units'}
             value={unit}
-            onChange={(v) => setUnit(v)}
+            onChange={(newUnit) => {
+              if (newUnit === unit) return;
+              if (newUnit === 'imperial') {
+                // Convert kg -> lbs, cm -> inches
+                setWeight(Math.round(weight * 2.20462 * 2) / 2);
+                setHeight(Math.round(height / 2.54));
+              } else {
+                // Convert lbs -> kg, inches -> cm
+                setWeight(Math.round((weight / 2.20462) * 2) / 2);
+                setHeight(Math.round(height * 2.54));
+              }
+              setUnit(newUnit);
+            }}
             options={[
-              { value: 'metric', label: 'Metric', icon: <Scale className="w-4 h-4" /> },
-              { value: 'imperial', label: 'Imperial', icon: <Ruler className="w-4 h-4" /> },
+              { value: 'metric', label: 'Metric (kg, cm)', icon: <Scale className="w-4 h-4" /> },
+              { value: 'imperial', label: 'Imperial (lbs, in)', icon: <Ruler className="w-4 h-4" /> },
             ]}
           />
         </div>
